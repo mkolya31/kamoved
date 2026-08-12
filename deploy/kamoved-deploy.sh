@@ -19,7 +19,7 @@ test -f "$env_file"
 test -f "$compose_file"
 
 echo "Fetching production branch"
-git fetch --prune origin production
+git fetch --prune origin production:refs/remotes/origin/production
 git reset --hard origin/production
 
 echo "Validating production Compose configuration"
