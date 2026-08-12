@@ -1,0 +1,62 @@
+package ru.kamoved.journal.application;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.kamoved.auth.domain.AppUser;
+import ru.kamoved.auth.persistence.AppUserRepository;
+import ru.kamoved.journal.api.dto.CreateSaleRequest;
+import ru.kamoved.journal.api.dto.JournalEntrySummary;
+import ru.kamoved.journal.domain.JournalEntry;
+import ru.kamoved.journal.domain.JournalEntryItem;
+import ru.kamoved.journal.domain.MoneyCalculator;
+import ru.kamoved.journal.persistence.JournalEntryRepository;
+
+import java.math.BigDecimal;
+
+@Service
+public class SaleService {
+
+    private final AppUserRepository users;
+    private final JournalEntryRepository entries;
+    private final MoneyCalculator moneyCalculator;
+    private final JournalEntryMapper mapper;
+
+    public SaleService(
+        AppUserRepository users,
+        JournalEntryRepository entries,
+        MoneyCalculator moneyCalculator,
+        JournalEntryMapper mapper
+    ) {
+        this.users = users;
+        this.entries = entries;
+        this.moneyCalculator = moneyCalculator;
+        this.mapper = mapper;
+    }
+
+    @Transactional
+    public JournalEntrySummary create(CreateSaleRequest request, String username) {
+        AppUser creator = users.findByUsernameIgnoreCase(username).orElseThrow();
+        JournalEntry sale = JournalEntry.sale(creator);
+
+        request.items().forEach(requestItem -> {
+            BigDecimal lineTotal = moneyCalculator.calculateLineTotal(
+                requestItem.quantity(), requestItem.unitPrice()
+            );
+            sale.addItem(new JournalEntryItem(
+                requestItem.catalogProductId(),
+                requestItem.name().trim(),
+                requestItem.quantity(),
+                requestItem.effectiveUnit(),
+                requestItem.unitPrice(),
+                lineTotal
+            ));
+        });
+
+        sale.setTotalAmount(moneyCalculator.calculateOrderTotal(
+            sale.getItems().stream().map(JournalEntryItem::getLineTotal).toList()
+        ));
+
+        return mapper.toSummary(entries.saveAndFlush(sale));
+    }
+}
+

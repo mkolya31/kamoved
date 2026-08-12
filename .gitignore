@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+.env
+/.pnpm-store/
+
+backend/target/
+backend/.mvn-cache/
+frontend/node_modules/
+frontend/dist/
+frontend/.pnpm-store/
+
+*.log
+.DS_Store
+Thumbs.db
