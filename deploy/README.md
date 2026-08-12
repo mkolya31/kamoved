@@ -70,8 +70,9 @@ Workflow `.github/workflows/deploy-production.yml` запускается при
 3. собирает backend, затем frontend;
 4. обновляет контейнеры и проверяет `https://kamoved.ru/`.
 
-В репозитории GitHub должны быть настроены Actions secrets: `VPS_HOST`,
-`VPS_PORT`, `VPS_USER`, `VPS_SSH_KEY` и `VPS_HOST_KEY`. Файл
+В репозитории GitHub должен быть настроен Actions secret `VPS_SSH_KEY` с
+приватным ключом, созданным специально для Камоведа. Публичные адрес, порт,
+пользователь и закреплённый SSH host key VPS находятся в workflow. Файл
 `deploy/kamoved-deploy.sh` хранит эталон серверного скрипта; исполняемая копия
 находится вне рабочей директории репозитория, чтобы deploy-ключ не мог изменить
 команду, которую ему разрешено запускать.

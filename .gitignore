@@ -5,6 +5,7 @@
 !.env.example
 !.env.*.example
 /.pnpm-store/
+/.codex-*
 
 backend/target/
 backend/.mvn-cache/
