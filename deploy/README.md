@@ -56,6 +56,26 @@ docker compose --env-file .env.production -f compose.production.yaml ps
 docker compose --env-file .env.production -f compose.production.yaml logs --tail=200
 ```
 
+## Автоматический деплой
+
+Workflow `.github/workflows/deploy-production.yml` запускается при каждом push в
+ветку `production`, в том числе после слияния pull request. GitHub Actions
+подключается к VPS отдельным SSH-ключом, который может запустить только
+`/opt/kamoved-deploy.sh`.
+
+Серверный скрипт последовательно:
+
+1. синхронизирует `/opt/kamoved` с `origin/production`;
+2. проверяет production Compose-конфигурацию;
+3. собирает backend, затем frontend;
+4. обновляет контейнеры и проверяет `https://kamoved.ru/`.
+
+В репозитории GitHub должны быть настроены Actions secrets: `VPS_HOST`,
+`VPS_PORT`, `VPS_USER`, `VPS_SSH_KEY` и `VPS_HOST_KEY`. Файл
+`deploy/kamoved-deploy.sh` хранит эталон серверного скрипта; исполняемая копия
+находится вне рабочей директории репозитория, чтобы deploy-ключ не мог изменить
+команду, которую ему разрешено запускать.
+
 ## Остановка
 
 ```sh
