@@ -291,6 +291,35 @@ input::placeholder {
   letter-spacing: -0.04em;
 }
 
+.journal-heading-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.revenue-today {
+  display: grid;
+  align-content: center;
+  min-width: 190px;
+  padding: 7px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.revenue-today span {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.revenue-today strong {
+  margin-top: 2px;
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 20px;
+}
+
 .mode-switch {
   display: flex;
   padding: 4px;
@@ -763,6 +792,14 @@ input::placeholder {
 
   .app-header {
     gap: 16px;
+  }
+
+  .journal-heading-actions {
+    display: grid;
+  }
+
+  .revenue-today {
+    min-height: 62px;
   }
 
   .header-actions,

@@ -3,6 +3,7 @@ package ru.kamoved.journal.api;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,9 +34,11 @@ public class JournalController {
         @Min(0) int page,
 
         @RequestParam(defaultValue = "30")
-        @Min(1) @Max(100) int size
+        @Min(1) @Max(100) int size,
+
+        Authentication authentication
     ) {
-        return journalQueryService.list(mode, page, size);
+        return journalQueryService.list(mode, page, size, authentication.getName());
     }
 
     @GetMapping("/{id}")

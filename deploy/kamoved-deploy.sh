@@ -20,7 +20,7 @@ test -f "$compose_file"
 
 echo "Fetching production branch"
 git fetch --prune origin production:refs/remotes/origin/production
-git reset --hard origin/production
+git checkout -B production origin/production
 
 echo "Validating production Compose configuration"
 docker compose --env-file "$env_file" -f "$compose_file" config --quiet
