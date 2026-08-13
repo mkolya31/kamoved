@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the Kamoved PostgreSQL backup every hour
+
+[Timer]
+OnCalendar=*-*-* *:05:00
+Persistent=true
+RandomizedDelaySec=5m
+AccuracySec=1m
+Unit=kamoved-backup.service
+
+[Install]
+WantedBy=timers.target
