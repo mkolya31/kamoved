@@ -17,12 +17,12 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       DB_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:-kamoved}
       DB_USERNAME: ${POSTGRES_USER:-kamoved}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-db}
-      KAMOVED_ADMIN_USERNAME: ${KAMOVED_ADMIN_USERNAME:-admin}
-      KAMOVED_ADMIN_PASSWORD: ${KAMOVED_ADMIN_PASSWORD:-change-me-local}
     depends_on:
       database:
         condition: service_healthy
@@ -37,4 +37,3 @@ services:
 
 volumes:
   kamoved-postgres:
-

@@ -12,8 +12,10 @@ spring:
     enabled: true
 
 kamoved:
-  bootstrap-admin:
-    username: admin
-    password: test-password
-    display-name: Тестовый пользователь
-
+  users:
+    - username: admin
+      password: test-password
+      display-name: Тестовый пользователь
+    - username: maksim
+      password: maxim-test-password
+      display-name: Максим

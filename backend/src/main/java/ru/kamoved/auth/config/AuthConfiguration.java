@@ -14,11 +14,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import ru.kamoved.auth.domain.AppUser;
-import ru.kamoved.auth.persistence.AppUserRepository;
+import ru.kamoved.auth.application.BootstrapUsersService;
+import ru.kamoved.auth.config.BootstrapUsersProperties.ConfiguredUser;
+
+import java.util.List;
 
 @Configuration
-@EnableConfigurationProperties(BootstrapAdminProperties.class)
+@EnableConfigurationProperties({BootstrapAdminProperties.class, BootstrapUsersProperties.class})
 public class AuthConfiguration {
 
     @Bean
@@ -55,19 +57,20 @@ public class AuthConfiguration {
     }
 
     @Bean
-    ApplicationRunner bootstrapAdmin(
-        AppUserRepository users,
-        PasswordEncoder passwordEncoder,
-        BootstrapAdminProperties properties
+    ApplicationRunner bootstrapUsers(
+        BootstrapUsersService bootstrapUsersService,
+        BootstrapUsersProperties usersProperties,
+        BootstrapAdminProperties legacyAdminProperties
     ) {
-        return arguments -> {
-            if (users.findByUsernameIgnoreCase(properties.username()).isEmpty()) {
-                users.save(new AppUser(
-                    properties.username(),
-                    passwordEncoder.encode(properties.password()),
-                    properties.displayName()
-                ));
-            }
-        };
+        List<ConfiguredUser> configuredUsers = usersProperties.users().isEmpty()
+            ? List.of(new ConfiguredUser(
+                legacyAdminProperties.username(),
+                legacyAdminProperties.password(),
+                legacyAdminProperties.displayName(),
+                true
+            ))
+            : usersProperties.users();
+
+        return arguments -> bootstrapUsersService.synchronize(configuredUsers);
     }
 }
