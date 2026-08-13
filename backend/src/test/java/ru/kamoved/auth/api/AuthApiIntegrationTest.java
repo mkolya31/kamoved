@@ -76,4 +76,20 @@ class AuthApiIntegrationTest {
                     """))
             .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void authenticatesAdditionalConfiguredUser() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "maksim",
+                      "password": "maxim-test-password"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.username").value("maksim"))
+            .andExpect(jsonPath("$.displayName").value("Максим"));
+    }
 }
