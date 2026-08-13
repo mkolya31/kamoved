@@ -85,3 +85,9 @@ docker compose --env-file .env.production -f compose.production.yaml down
 
 Обычная остановка не удаляет данные PostgreSQL. Флаг `-v` использовать нельзя,
 если требуется сохранить production-данные.
+
+## Резервные копии PostgreSQL
+
+Production-база каждый час шифруется и сохраняется в приватный Timeweb S3.
+Установка, тестовое восстановление и аварийная инструкция описаны в
+[`deploy/backup/README.md`](backup/README.md).

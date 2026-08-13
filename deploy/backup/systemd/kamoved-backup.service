@@ -1,0 +1,29 @@
+[Unit]
+Description=Kamoved PostgreSQL encrypted backup to Timeweb S3
+Documentation=file:/opt/kamoved/deploy/backup/README.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30min
+User=root
+Group=root
+UMask=0077
+EnvironmentFile=/etc/kamoved/backup.env
+ExecStart=/usr/bin/bash /opt/kamoved/deploy/backup/kamoved-backup.sh backup
+CacheDirectory=kamoved-restic
+CacheDirectoryMode=0700
+StateDirectory=kamoved-backup
+StateDirectoryMode=0700
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/run/lock
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

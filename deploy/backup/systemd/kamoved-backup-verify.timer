@@ -1,0 +1,12 @@
+[Unit]
+Description=Fully verify the Kamoved PostgreSQL backup every month
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=2h
+AccuracySec=5m
+Unit=kamoved-backup-verify.service
+
+[Install]
+WantedBy=timers.target
