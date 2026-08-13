@@ -78,6 +78,10 @@ public class JournalEntry {
     @OrderBy("id ASC")
     private List<JournalEntryItem> items = new ArrayList<>();
 
+    @OneToMany(mappedBy = "journalEntry", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<EntryContact> contacts = new ArrayList<>();
+
     protected JournalEntry() {
     }
 
@@ -93,13 +97,42 @@ public class JournalEntry {
         return new JournalEntry(createdBy);
     }
 
+    public static JournalEntry order(
+        AppUser createdBy,
+        ExecutionStatus executionStatus,
+        PaymentStatus paymentStatus,
+        BigDecimal prepaymentAmount,
+        FulfillmentMethod fulfillmentMethod,
+        String deliveryAddress,
+        String comment
+    ) {
+        JournalEntry entry = new JournalEntry(createdBy);
+        entry.type = EntryType.ORDER;
+        entry.executionStatus = executionStatus;
+        entry.paymentStatus = paymentStatus;
+        entry.prepaymentAmount = prepaymentAmount;
+        entry.fulfillmentMethod = fulfillmentMethod;
+        entry.deliveryAddress = deliveryAddress;
+        entry.comment = comment;
+        return entry;
+    }
+
     public void addItem(JournalEntryItem item) {
         items.add(item);
         item.attachTo(this);
     }
 
+    public void addContact(EntryContact contact) {
+        contacts.add(contact);
+        contact.attachTo(this);
+    }
+
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public void setPrepaymentAmount(BigDecimal prepaymentAmount) {
+        this.prepaymentAmount = prepaymentAmount;
     }
 
     @PrePersist
@@ -130,16 +163,47 @@ public class JournalEntry {
         return paymentStatus;
     }
 
+    public BigDecimal getPrepaymentAmount() {
+        return prepaymentAmount;
+    }
+
     public BigDecimal getTotalAmount() {
         return totalAmount;
+    }
+
+    public FulfillmentMethod getFulfillmentMethod() {
+        return fulfillmentMethod;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public AppUser getCreatedBy() {
+        return createdBy;
     }
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
     public List<JournalEntryItem> getItems() {
         return Collections.unmodifiableList(items);
     }
-}
 
+    public List<EntryContact> getContacts() {
+        return Collections.unmodifiableList(contacts);
+    }
+}

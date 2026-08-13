@@ -13,6 +13,11 @@ export type ExecutionStatus =
 
 export type PaymentStatus = 'UNPAID' | 'PREPAID' | 'PAID'
 
+export type FulfillmentMethod =
+  | 'PICKUP_WAREHOUSE'
+  | 'PICKUP_FACTORY'
+  | 'DELIVERY'
+
 export type UnitOfMeasure =
   | 'PIECE'
   | 'SQUARE_METER'
@@ -42,6 +47,17 @@ export interface JournalEntry {
   totalAmount: number
   paymentStatus: PaymentStatus
   executionStatus: ExecutionStatus
+  clientName: string | null
+  clientPhone: string | null
+  fulfillmentMethod: FulfillmentMethod | null
+  deliveryAddress: string | null
+}
+
+export interface JournalContact {
+  id: number
+  name: string | null
+  phone: string | null
+  comment: string | null
 }
 
 export interface JournalEntryDetails {
@@ -51,7 +67,17 @@ export interface JournalEntryDetails {
   items: JournalItem[]
   totalAmount: number
   paymentStatus: PaymentStatus
+  prepaymentAmount: number | null
+  remainingAmount: number
   executionStatus: ExecutionStatus
+  client: JournalContact | null
+  additionalContacts: JournalContact[]
+  fulfillmentMethod: FulfillmentMethod | null
+  deliveryAddress: string | null
+  comment: string | null
+  createdByDisplayName: string
+  updatedAt: string
+  version: number
 }
 
 export interface JournalPage {
@@ -67,4 +93,22 @@ export interface SaleItemInput {
   quantity: number
   unit: UnitOfMeasure
   unitPrice: number
+}
+
+export interface ContactInput {
+  name?: string
+  phone?: string
+  comment?: string
+}
+
+export interface OrderInput {
+  items: SaleItemInput[]
+  client?: ContactInput
+  additionalContacts: ContactInput[]
+  paymentStatus: PaymentStatus
+  prepaymentAmount?: number
+  executionStatus: ExecutionStatus
+  fulfillmentMethod?: FulfillmentMethod
+  deliveryAddress?: string
+  comment?: string
 }
