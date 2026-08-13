@@ -36,11 +36,25 @@ public class AppUser {
     }
 
     public AppUser(String username, String passwordHash, String displayName) {
+        this(username, passwordHash, displayName, true);
+    }
+
+    public AppUser(String username, String passwordHash, String displayName, boolean active) {
         this.username = username;
         this.passwordHash = passwordHash;
         this.displayName = displayName;
-        this.active = true;
+        this.active = active;
         this.createdAt = OffsetDateTime.now();
+    }
+
+    public void synchronizeFromConfiguration(
+        String passwordHash,
+        String displayName,
+        boolean active
+    ) {
+        this.passwordHash = passwordHash;
+        this.displayName = displayName;
+        this.active = active;
     }
 
     public Long getId() {
@@ -63,4 +77,3 @@ public class AppUser {
         return active;
     }
 }
-

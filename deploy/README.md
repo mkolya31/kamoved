@@ -15,6 +15,39 @@ Kamoved разворачивается отдельным Compose-проекто
 Файл `.env.production` содержит секреты, исключён из Git и не должен попадать в
 репозиторий.
 
+## Пользователи
+
+Пользователи перечисляются в `.env.production` последовательными индексами:
+
+```text
+KAMOVED_USERS_0_USERNAME=admin
+KAMOVED_USERS_0_PASSWORD=длинный-уникальный-пароль
+KAMOVED_USERS_0_DISPLAY_NAME=Николай
+KAMOVED_USERS_0_ACTIVE=true
+
+KAMOVED_USERS_1_USERNAME=maksim
+KAMOVED_USERS_1_PASSWORD=другой-длинный-уникальный-пароль
+KAMOVED_USERS_1_DISPLAY_NAME=Максим
+KAMOVED_USERS_1_ACTIVE=true
+```
+
+После изменения списка нужно пересоздать backend:
+
+```sh
+docker compose --env-file .env.production -f compose.production.yaml \
+  up -d --no-deps --force-recreate backend
+```
+
+При запуске отсутствующие пользователи создаются, а у существующих обновляются
+имя, пароль и признак активности. Пароль повторно хешируется только при его
+изменении. Удаление строки из `.env.production` не удаляет и не отключает уже
+созданного пользователя; для отключения нужно оставить пользователя в списке и
+задать `KAMOVED_USERS_N_ACTIVE=false`.
+
+Старые переменные `KAMOVED_ADMIN_USERNAME`, `KAMOVED_ADMIN_PASSWORD` и
+`KAMOVED_ADMIN_DISPLAY_NAME` продолжают поддерживаться, если список
+`KAMOVED_USERS_*` не задан.
+
 ## Проверка и последовательная сборка
 
 На VPS с 2 ГБ RAM backend и frontend лучше собирать последовательно:
