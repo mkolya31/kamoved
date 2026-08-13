@@ -12,12 +12,20 @@ import ru.kamoved.journal.api.dto.JournalPageResponse;
 import ru.kamoved.journal.domain.EntryType;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.JournalEntry;
+import ru.kamoved.journal.domain.PaymentStatus;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
 
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.EnumSet;
 
 @Service
 public class JournalQueryService {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Moscow");
 
     private static final EnumSet<ExecutionStatus> ACTIVE_STATUSES = EnumSet.of(
         ExecutionStatus.NEW,
@@ -31,14 +39,20 @@ public class JournalQueryService {
 
     private final JournalEntryRepository entries;
     private final JournalEntryMapper mapper;
+    private final Clock clock;
 
-    public JournalQueryService(JournalEntryRepository entries, JournalEntryMapper mapper) {
+    public JournalQueryService(
+        JournalEntryRepository entries,
+        JournalEntryMapper mapper,
+        Clock clock
+    ) {
         this.entries = entries;
         this.mapper = mapper;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
-    public JournalPageResponse list(String mode, int page, int size) {
+    public JournalPageResponse list(String mode, int page, int size, String username) {
         PageRequest pageable = PageRequest.of(page, size);
         Page<JournalEntry> result = "active".equals(mode)
             ? entries.findByTypeAndExecutionStatusInOrderByCreatedAtDesc(
@@ -49,7 +63,23 @@ public class JournalQueryService {
             result.getContent().stream().map(mapper::toSummary).toList(),
             result.getNumber(),
             result.getSize(),
-            result.hasNext()
+            result.hasNext(),
+            todayRevenue(username)
+        );
+    }
+
+    private BigDecimal todayRevenue(String username) {
+        LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        OffsetDateTime from = today.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
+        OffsetDateTime until = today.plusDays(1).atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
+
+        return entries.sumRevenueBySellerAndCreatedAt(
+            username,
+            EntryType.SALE,
+            PaymentStatus.PAID,
+            ExecutionStatus.COMPLETED,
+            from,
+            until
         );
     }
 

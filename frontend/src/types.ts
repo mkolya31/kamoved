@@ -59,6 +59,7 @@ export interface JournalPage {
   page: number
   size: number
   hasNext: boolean
+  todayRevenue: number
 }
 
 export interface SaleItemInput {

@@ -19,6 +19,7 @@ interface JournalPageProps {
 export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [mode, setMode] = useState<'all' | 'active'>('all')
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saleOpen, setSaleOpen] = useState(false)
@@ -29,7 +30,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     setLoading(true)
     setError('')
     try {
-      setEntries((await loadJournal(mode)).items)
+      const journal = await loadJournal(mode)
+      setEntries(journal.items)
+      setTodayRevenue(journal.todayRevenue)
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) {
         onLogout()
@@ -120,19 +123,25 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             <p className="eyebrow">Рабочий журнал</p>
             <h2>{mode === 'all' ? 'Последние записи' : 'Активные заказы'}</h2>
           </div>
-          <div className="mode-switch" aria-label="Режим журнала">
-            <button
-              className={mode === 'all' ? 'active' : ''}
-              onClick={() => setMode('all')}
-            >
-              Все записи
-            </button>
-            <button
-              className={mode === 'active' ? 'active' : ''}
-              onClick={() => setMode('active')}
-            >
-              Активные заказы
-            </button>
+          <div className="journal-heading-actions">
+            <div className="revenue-today" aria-live="polite">
+              <span>Выручка сегодня</span>
+              <strong>{todayRevenue === null ? '—' : formatMoney(todayRevenue)}</strong>
+            </div>
+            <div className="mode-switch" aria-label="Режим журнала">
+              <button
+                className={mode === 'all' ? 'active' : ''}
+                onClick={() => setMode('all')}
+              >
+                Все записи
+              </button>
+              <button
+                className={mode === 'active' ? 'active' : ''}
+                onClick={() => setMode('active')}
+              >
+                Активные заказы
+              </button>
+            </div>
           </div>
         </section>
 
@@ -253,6 +262,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             setSaleOpen(false)
             setMode('all')
             setEntries((current) => [sale, ...current.filter(({ id }) => id !== sale.id)])
+            setTodayRevenue((current) => (current ?? 0) + sale.totalAmount)
             setExpanded(new Set())
           }}
         />
