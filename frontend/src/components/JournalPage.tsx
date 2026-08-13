@@ -6,9 +6,11 @@ import {
   formatMoney,
   formatQuantity,
   formatTime,
+  fulfillmentLabels,
   paymentLabels,
 } from '../lib/format'
 import type { JournalEntry, JournalEntryDetails, User } from '../types'
+import { OrderDialog } from './OrderDialog'
 import { SaleDialog } from './SaleDialog'
 
 interface JournalPageProps {
@@ -23,6 +25,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saleOpen, setSaleOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [details, setDetails] = useState<Map<number, JournalEntryDetails>>(new Map())
 
@@ -105,8 +108,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           </button>
           <button
             className="button button-primary"
-            disabled
-            title="Будет добавлено на следующем этапе"
+            onClick={() => setOrderOpen(true)}
           >
             + Новый заказ
           </button>
@@ -184,6 +186,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                 <div className="entry-list">
                   {dateEntries.map((entry) => {
                     const mainItem = entry.mainItem
+                    const isOrder = entry.type === 'ORDER'
                     const isExpanded = expanded.has(entry.id)
                     const entryDetails = details.get(entry.id)
                     return (
@@ -195,23 +198,31 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           aria-expanded={isExpanded}
                         >
                           <span className="entry-number">
-                            <strong>П-{entry.id}</strong>
+                            <strong>{isOrder ? 'З' : 'П'}-{entry.id}</strong>
                             <small>{formatTime(entry.createdAt)}</small>
                           </span>
-                          <span className="entry-kind">
+                          <span className={`entry-kind ${isOrder ? 'entry-kind-order' : ''}`}>
                             <i aria-hidden="true">●</i>
-                            Продажа из наличия
+                            {isOrder
+                              ? (entry.clientName || 'Заказ с сопровождением')
+                              : 'Продажа из наличия'}
                           </span>
                           <span className="entry-product">
                             <strong>{mainItem?.name ?? 'Без позиции'}</strong>
                             {mainItem && <small>{formatQuantity(mainItem.quantity, mainItem.unit)}</small>}
+                            {isOrder && entry.fulfillmentMethod && (
+                              <small>
+                                {fulfillmentLabels[entry.fulfillmentMethod]}
+                                {entry.deliveryAddress ? ` · ${entry.deliveryAddress}` : ''}
+                              </small>
+                            )}
                           </span>
                           <strong className="entry-total">{formatMoney(entry.totalAmount)}</strong>
                           <span className="status-stack">
-                            <span className="status status-paid">
+                            <span className={`status status-payment-${entry.paymentStatus.toLowerCase()}`}>
                               {paymentLabels[entry.paymentStatus]}
                             </span>
-                            <span className="status status-completed">
+                            <span className={`status status-execution-${entry.executionStatus.toLowerCase()}`}>
                               {executionLabels[entry.executionStatus]}
                             </span>
                           </span>
@@ -219,13 +230,15 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                         </button>
 
                         {isExpanded && !entryDetails && (
-                          <div className="entry-details-loading">Открываем состав продажи…</div>
+                          <div className="entry-details-loading">
+                            {isOrder ? 'Открываем заказ…' : 'Открываем состав продажи…'}
+                          </div>
                         )}
 
                         {isExpanded && entryDetails && (
                           <div className="entry-details">
                             <div>
-                              <h4>Состав продажи</h4>
+                              <h4>{isOrder ? 'Состав заказа' : 'Состав продажи'}</h4>
                               <ul>
                                 {entryDetails.items.map((item) => (
                                   <li key={item.id}>
@@ -240,9 +253,48 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 ))}
                               </ul>
                             </div>
-                            <p>
-                              Продажа автоматически отмечена как оплаченная и завершённая.
-                            </p>
+                            {isOrder ? (
+                              <div className="order-details-meta">
+                                {(entryDetails.client || entryDetails.additionalContacts.length > 0) && (
+                                  <section>
+                                    <h4>Контакты</h4>
+                                    {entryDetails.client && (
+                                      <p>
+                                        <strong>{entryDetails.client.name || 'Клиент'}</strong>
+                                        {entryDetails.client.phone && <span>{entryDetails.client.phone}</span>}
+                                        {entryDetails.client.comment && <small>{entryDetails.client.comment}</small>}
+                                      </p>
+                                    )}
+                                    {entryDetails.additionalContacts.map((contact) => (
+                                      <p key={contact.id}>
+                                        <strong>{contact.name || 'Дополнительный контакт'}</strong>
+                                        {contact.phone && <span>{contact.phone}</span>}
+                                        {contact.comment && <small>{contact.comment}</small>}
+                                      </p>
+                                    ))}
+                                  </section>
+                                )}
+                                <section>
+                                  <h4>Детали</h4>
+                                  {entryDetails.paymentStatus === 'PREPAID' && (
+                                    <p>
+                                      <span>Предоплата: {formatMoney(entryDetails.prepaymentAmount ?? 0)}</span>
+                                      <strong>Остаток: {formatMoney(entryDetails.remainingAmount)}</strong>
+                                    </p>
+                                  )}
+                                  {entryDetails.fulfillmentMethod && (
+                                    <p>
+                                      <strong>{fulfillmentLabels[entryDetails.fulfillmentMethod]}</strong>
+                                      {entryDetails.deliveryAddress && <span>{entryDetails.deliveryAddress}</span>}
+                                    </p>
+                                  )}
+                                  {entryDetails.comment && <p className="order-comment">{entryDetails.comment}</p>}
+                                  <small>Создал: {entryDetails.createdByDisplayName}</small>
+                                </section>
+                              </div>
+                            ) : (
+                              <p>Продажа автоматически отмечена как оплаченная и завершённая.</p>
+                            )}
                           </div>
                         )}
                       </article>
@@ -263,6 +315,18 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             setMode('all')
             setEntries((current) => [sale, ...current.filter(({ id }) => id !== sale.id)])
             setTodayRevenue((current) => (current ?? 0) + sale.totalAmount)
+            setExpanded(new Set())
+          }}
+        />
+      )}
+
+      {orderOpen && (
+        <OrderDialog
+          onClose={() => setOrderOpen(false)}
+          onCreated={(order) => {
+            setOrderOpen(false)
+            setMode('all')
+            setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
             setExpanded(new Set())
           }}
         />

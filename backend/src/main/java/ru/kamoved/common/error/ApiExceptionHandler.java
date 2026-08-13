@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import ru.kamoved.journal.application.InvalidOrderException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -28,5 +30,10 @@ public class ApiExceptionHandler {
     ApiError handleConstraintViolation(ConstraintViolationException exception) {
         return new ApiError("VALIDATION_ERROR", "Некорректные параметры запроса", Map.of());
     }
-}
 
+    @ExceptionHandler(InvalidOrderException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ApiError handleInvalidOrder(InvalidOrderException exception) {
+        return new ApiError("INVALID_ORDER", exception.getMessage(), Map.of());
+    }
+}
