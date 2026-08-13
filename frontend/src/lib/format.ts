@@ -1,4 +1,9 @@
-import type { ExecutionStatus, PaymentStatus, UnitOfMeasure } from '../types'
+import type {
+  ExecutionStatus,
+  FulfillmentMethod,
+  PaymentStatus,
+  UnitOfMeasure,
+} from '../types'
 
 const moneyFormatter = new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 0,
@@ -33,6 +38,12 @@ export const paymentLabels: Record<PaymentStatus, string> = {
   PAID: 'Оплачено',
 }
 
+export const fulfillmentLabels: Record<FulfillmentMethod, string> = {
+  PICKUP_WAREHOUSE: 'Самовывоз со склада',
+  PICKUP_FACTORY: 'Самовывоз с завода',
+  DELIVERY: 'Доставка клиенту',
+}
+
 export function formatMoney(value: number): string {
   return `${moneyFormatter.format(value)} ₽`
 }
@@ -64,4 +75,3 @@ export function formatDate(value: string): string {
     year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
   }).format(date)
 }
-

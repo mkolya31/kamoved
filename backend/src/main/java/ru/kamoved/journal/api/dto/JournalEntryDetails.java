@@ -2,6 +2,7 @@ package ru.kamoved.journal.api.dto;
 
 import ru.kamoved.journal.domain.EntryType;
 import ru.kamoved.journal.domain.ExecutionStatus;
+import ru.kamoved.journal.domain.FulfillmentMethod;
 import ru.kamoved.journal.domain.PaymentStatus;
 
 import java.math.BigDecimal;
@@ -15,6 +16,16 @@ public record JournalEntryDetails(
     List<JournalItemSummary> items,
     BigDecimal totalAmount,
     PaymentStatus paymentStatus,
-    ExecutionStatus executionStatus
+    BigDecimal prepaymentAmount,
+    BigDecimal remainingAmount,
+    ExecutionStatus executionStatus,
+    JournalContactDetails client,
+    List<JournalContactDetails> additionalContacts,
+    FulfillmentMethod fulfillmentMethod,
+    String deliveryAddress,
+    String comment,
+    String createdByDisplayName,
+    OffsetDateTime updatedAt,
+    long version
 ) {
 }

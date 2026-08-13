@@ -27,11 +27,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TodayRevenueApiIntegrationTest.FixedClockConfiguration.class)
 @Sql(statements = {
+    "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry",
     "DELETE FROM app_user WHERE username <> 'admin'"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
+    "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry",
     "DELETE FROM app_user WHERE username <> 'admin'"

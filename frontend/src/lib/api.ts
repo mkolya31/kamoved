@@ -2,6 +2,7 @@ import type {
   JournalEntry,
   JournalEntryDetails,
   JournalPage,
+  OrderInput,
   SaleItemInput,
   User,
 } from '../types'
@@ -98,5 +99,12 @@ export function createSale(items: SaleItemInput[]): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/sales', {
     method: 'POST',
     body: JSON.stringify({ items }),
+  })
+}
+
+export function createOrder(order: OrderInput): Promise<JournalEntry> {
+  return mutate<JournalEntry>('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify(order),
   })
 }
