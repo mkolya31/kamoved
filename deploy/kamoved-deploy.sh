@@ -19,8 +19,9 @@ test -f "$env_file"
 test -f "$compose_file"
 
 echo "Fetching production branch"
-git fetch --prune origin production:refs/remotes/origin/production
-git checkout -B production origin/production
+# Keep the deploy independent from stale or broken remote-tracking refs.
+git fetch --no-tags --refmap= origin refs/heads/production
+git checkout -B production FETCH_HEAD
 
 echo "Validating production Compose configuration"
 docker compose --env-file "$env_file" -f "$compose_file" config --quiet
