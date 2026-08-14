@@ -165,7 +165,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand-block">
-          <div className="brand-mark brand-mark-small" aria-hidden="true">К</div>
+          <img className="kamoved-logo" src="/brand/favicon-192.png" alt="kamoved logo"/>
           <div>
             <h1>Камовед</h1>
             <p>Журнал заказов</p>
