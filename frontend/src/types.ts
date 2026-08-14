@@ -46,6 +46,8 @@ export interface JournalEntry {
   itemsCount: number
   totalAmount: number
   paymentStatus: PaymentStatus
+  prepaymentAmount: number | null
+  remainingAmount: number
   executionStatus: ExecutionStatus
   clientName: string | null
   clientPhone: string | null
