@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -144,6 +145,52 @@ class OrderApiIntegrationTest {
                     """)))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Предоплата должна быть меньше суммы заказа"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void quicklyChangesExecutionStatusAndRejectsStaleVersion() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"executionStatus\": \"NEW\"")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.executionStatus").value("NEW"))
+            .andExpect(jsonPath("$.version").value(0))
+            .andReturn();
+
+        long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
+            .get("id").asLong();
+
+        mockMvc.perform(patch("/api/orders/{id}/execution-status", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "executionStatus": "COMPLETED",
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.executionStatus").value("COMPLETED"))
+            .andExpect(jsonPath("$.version").value(1));
+
+        mockMvc.perform(get("/api/journal?mode=active"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items.length()").value(0));
+
+        mockMvc.perform(patch("/api/orders/{id}/execution-status", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "executionStatus": "CANCELLED",
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(
+                "Заказ уже изменён другим пользователем. Обновите журнал и повторите действие"));
     }
 
     private String minimalOrder(String additionalFields) {
