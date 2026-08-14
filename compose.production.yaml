@@ -29,6 +29,7 @@ services:
       DB_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env.production}
       DB_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.production}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      SESSION_COOKIE_SECURE: "true"
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m"
     depends_on:
       database:

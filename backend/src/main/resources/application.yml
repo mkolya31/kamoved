@@ -18,10 +18,17 @@ spring:
 
 server:
   forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 7d
+      cookie:
+        max-age: 7d
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: lax
 
 kamoved:
   bootstrap-admin:
     username: ${KAMOVED_ADMIN_USERNAME:admin}
     password: ${KAMOVED_ADMIN_PASSWORD:change-me-local}
     display-name: ${KAMOVED_ADMIN_DISPLAY_NAME:Администратор}
-
