@@ -11,7 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import ru.kamoved.auth.application.AuthSessionService;
 import ru.kamoved.auth.domain.AppUser;
 import ru.kamoved.auth.persistence.AppUserRepository;
 
@@ -31,15 +31,18 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
     private final AppUserRepository users;
+    private final AuthSessionService authSessionService;
 
     public AuthController(
         AuthenticationManager authenticationManager,
         SecurityContextRepository securityContextRepository,
-        AppUserRepository users
+        AppUserRepository users,
+        AuthSessionService authSessionService
     ) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
         this.users = users;
+        this.authSessionService = authSessionService;
     }
 
     @GetMapping("/csrf")
@@ -66,7 +69,11 @@ public class AuthController {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
         securityContextRepository.saveContext(context, request, response);
+        authSessionService.startAuthenticatedSession(request);
 
         return currentUser(authentication);
     }
@@ -74,7 +81,7 @@ public class AuthController {
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        new SecurityContextLogoutHandler().logout(request, response, authentication);
+        authSessionService.logout(request, response, authentication);
     }
 
     @GetMapping("/me")

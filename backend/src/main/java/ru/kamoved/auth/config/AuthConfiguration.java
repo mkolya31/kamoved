@@ -13,7 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import ru.kamoved.auth.application.AuthSessionService;
 import ru.kamoved.auth.application.BootstrapUsersService;
 import ru.kamoved.auth.config.BootstrapUsersProperties.ConfiguredUser;
 
@@ -24,7 +26,10 @@ import java.util.List;
 public class AuthConfiguration {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        AuthSessionService authSessionService
+    ) throws Exception {
         http
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
@@ -36,7 +41,11 @@ public class AuthConfiguration {
             .logout(AbstractHttpConfigurer::disable)
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((request, response, exception) ->
-                    response.sendError(401)));
+                    response.sendError(401)))
+            .addFilterBefore(
+                new AbsoluteSessionExpirationFilter(authSessionService),
+                CsrfFilter.class
+            );
 
         return http.build();
     }
