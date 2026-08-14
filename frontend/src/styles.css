@@ -406,6 +406,7 @@ input::placeholder {
 }
 
 .entry-summary {
+  position: relative;
   display: grid;
   grid-template-columns: 90px minmax(170px, 0.85fr) minmax(240px, 1.4fr) 130px 150px 24px;
   align-items: center;
@@ -413,14 +414,28 @@ input::placeholder {
   min-height: 84px;
   gap: 18px;
   padding: 15px 18px;
-  border: 0;
   background: transparent;
   text-align: left;
-  cursor: pointer;
 }
 
 .entry-summary:hover {
   background: #faf7f2;
+}
+
+.entry-summary-toggle {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.entry-summary > span {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .entry-number,
@@ -470,6 +485,7 @@ input::placeholder {
 }
 
 .status-stack {
+  gap: 7px;
   justify-items: start;
 }
 
@@ -503,27 +519,59 @@ input::placeholder {
 }
 
 .status-execution-completed {
-  border-color: #c8d8eb;
-  color: var(--blue);
-  background: var(--blue-soft);
+  border-color: #b8dac9;
+  color: var(--green);
+  background: var(--green-soft);
 }
 
-.status-execution-new,
 .status-execution-ordered_factory,
 .status-execution-in_production,
 .status-execution-ready_factory,
 .status-execution-in_transit_to_warehouse,
 .status-execution-at_warehouse,
 .status-execution-out_for_delivery {
-  border-color: #d9c4ad;
-  color: var(--accent-dark);
-  background: var(--accent-soft);
+  border-color: #c8d8eb;
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.status-execution-new {
+  border-color: #d7c8ec;
+  color: #69469b;
+  background: #f3eefb;
 }
 
 .status-execution-cancelled {
-  border-color: #efc4be;
-  color: #9e3027;
-  background: #fff1ef;
+  border-color: #d8d4cf;
+  color: #736d67;
+  background: #f1efec;
+}
+
+.quick-status-select {
+  z-index: 3;
+  width: auto;
+  max-width: 150px;
+  height: 23px;
+  min-height: 23px;
+  padding: 0 25px 0 8px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='m1 1 3 3 3-3' fill='none' stroke='%23746d65' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px 5px;
+  line-height: 21px;
+  outline: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.quick-status-select:focus-visible {
+  box-shadow: 0 0 0 3px rgba(36, 107, 181, 0.18);
+}
+
+.quick-status-select:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .chevron {
