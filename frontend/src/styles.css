@@ -123,6 +123,11 @@ textarea:focus-visible {
   box-shadow: none;
 }
 
+.kamoved-logo {
+  height: 42px;
+  transform: scaleX(-1);
+}
+
 .boot-screen {
   display: grid;
   min-height: 100vh;
