@@ -1028,14 +1028,25 @@ input::placeholder {
   text-transform: uppercase;
 }
 
-.order-settings-grid {
+.order-settings-groups {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
-.wide-field {
-  grid-column: 1 / -1;
+.order-settings-group {
+  display: grid;
+  gap: 12px;
+}
+
+.order-settings-primary-field,
+.order-settings-dependent-fields {
+  width: min(100%, 520px);
+}
+
+.order-settings-dependent-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .order-form-error {
@@ -1269,12 +1280,11 @@ input::placeholder {
   }
 
   .contact-fields,
-  .order-settings-grid {
+  .order-settings-dependent-fields {
     grid-template-columns: 1fr;
   }
 
-  .contact-comment,
-  .wide-field {
+  .contact-comment {
     grid-column: auto;
   }
 
