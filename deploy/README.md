@@ -98,7 +98,7 @@ Workflow `.github/workflows/deploy-production.yml` запускается при
 
 Серверный скрипт последовательно:
 
-1. синхронизирует `/opt/kamoved` с `origin/production`;
+1. получает `production` в `FETCH_HEAD` без обновления remote-tracking refs и синхронизирует `/opt/kamoved` с полученным коммитом;
 2. проверяет production Compose-конфигурацию;
 3. собирает backend, затем frontend;
 4. обновляет контейнеры и проверяет `https://kamoved.ru/`.
@@ -109,6 +109,13 @@ Workflow `.github/workflows/deploy-production.yml` запускается при
 `deploy/kamoved-deploy.sh` хранит эталон серверного скрипта; исполняемая копия
 находится вне рабочей директории репозитория, чтобы deploy-ключ не мог изменить
 команду, которую ему разрешено запускать.
+
+После изменения эталона исполняемую копию на VPS нужно обновить вручную:
+
+```sh
+sudo install -o root -g root -m 0755 \
+  /opt/kamoved/deploy/kamoved-deploy.sh /opt/kamoved-deploy.sh
+```
 
 ## Остановка
 
