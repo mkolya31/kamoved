@@ -15,6 +15,8 @@ public record JournalEntrySummary(
     int itemsCount,
     BigDecimal totalAmount,
     PaymentStatus paymentStatus,
+    BigDecimal prepaymentAmount,
+    BigDecimal remainingAmount,
     ExecutionStatus executionStatus,
     String clientName,
     String clientPhone,

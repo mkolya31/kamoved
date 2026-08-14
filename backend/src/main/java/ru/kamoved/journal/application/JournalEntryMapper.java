@@ -34,6 +34,8 @@ public class JournalEntryMapper {
             entry.getItems().size(),
             entry.getTotalAmount(),
             entry.getPaymentStatus(),
+            entry.getPrepaymentAmount(),
+            remainingAmount(entry),
             entry.getExecutionStatus(),
             client == null ? null : client.getName(),
             client == null ? null : client.getPhone(),

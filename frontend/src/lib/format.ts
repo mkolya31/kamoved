@@ -6,7 +6,7 @@ import type {
 } from '../types'
 
 const moneyFormatter = new Intl.NumberFormat('ru-RU', {
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 2,
 })
 
 const quantityFormatter = new Intl.NumberFormat('ru-RU', {
