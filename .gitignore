@@ -7,6 +7,9 @@
 /.pnpm-store/
 /.codex-*
 
+# Generate image drafts here; promote only approved assets into tracked folders.
+/.image-drafts/
+
 backend/target/
 backend/.mvn-cache/
 frontend/node_modules/
