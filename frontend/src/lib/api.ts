@@ -3,6 +3,7 @@ import type {
   JournalEntryDetails,
   JournalPage,
   OrderInput,
+  PaymentStatus,
   SaleItemInput,
   ExecutionStatus,
   User,
@@ -118,5 +119,17 @@ export function updateOrderExecutionStatus(
   return mutate<JournalEntry>(`/api/orders/${id}/execution-status`, {
     method: 'PATCH',
     body: JSON.stringify({ executionStatus, version }),
+  })
+}
+
+export function updateOrderPayment(
+  id: number,
+  paymentStatus: PaymentStatus,
+  paidAmount: number | undefined,
+  version: number,
+): Promise<JournalEntry> {
+  return mutate<JournalEntry>(`/api/orders/${id}/payment`, {
+    method: 'PATCH',
+    body: JSON.stringify({ paymentStatus, paidAmount, version }),
   })
 }

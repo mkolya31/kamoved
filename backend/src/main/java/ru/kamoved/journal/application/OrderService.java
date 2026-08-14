@@ -87,7 +87,7 @@ public class OrderService {
 
         BigDecimal prepaymentAmount = validateAndNormalizePrepayment(
             paymentStatus, request.prepaymentAmount(), totalAmount);
-        order.setPrepaymentAmount(prepaymentAmount);
+        order.changePayment(paymentStatus, prepaymentAmount);
 
         addContact(order, ContactType.CLIENT, request.client());
         List<ContactRequest> additionalContacts = request.additionalContacts() == null
@@ -104,6 +104,28 @@ public class OrderService {
         ExecutionStatus executionStatus,
         long expectedVersion
     ) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
+
+        order.changeExecutionStatus(executionStatus);
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntrySummary updatePayment(
+        long orderId,
+        PaymentStatus paymentStatus,
+        BigDecimal paidAmount,
+        long expectedVersion
+    ) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
+        BigDecimal prepaymentAmount = validateAndNormalizePrepayment(
+            paymentStatus, paidAmount, order.getTotalAmount());
+
+        order.changePayment(paymentStatus, prepaymentAmount);
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    private JournalEntry findOrderWithExpectedVersion(long orderId, long expectedVersion) {
         JournalEntry order = entries.findById(orderId).orElseThrow(OrderNotFoundException::new);
         if (order.getType() != EntryType.ORDER) {
             throw new OrderNotFoundException();
@@ -111,29 +133,31 @@ public class OrderService {
         if (order.getVersion() != expectedVersion) {
             throw new OrderVersionConflictException();
         }
-
-        order.changeExecutionStatus(executionStatus);
-        return mapper.toSummary(entries.saveAndFlush(order));
+        return order;
     }
 
     private BigDecimal validateAndNormalizePrepayment(
         PaymentStatus paymentStatus,
-        BigDecimal prepaymentAmount,
+        BigDecimal paidAmount,
         BigDecimal totalAmount
     ) {
-        if (paymentStatus == PaymentStatus.PREPAID) {
-            if (prepaymentAmount == null || prepaymentAmount.signum() <= 0) {
-                throw new InvalidOrderException("Для предоплаты укажите внесённую сумму");
-            }
-            if (prepaymentAmount.compareTo(totalAmount) >= 0) {
-                throw new InvalidOrderException("Предоплата должна быть меньше суммы заказа");
-            }
-            return prepaymentAmount;
+        if (paidAmount != null && paidAmount.signum() < 0) {
+            throw new InvalidOrderException("Внесённая сумма не может быть отрицательной");
         }
 
-        if (prepaymentAmount != null && prepaymentAmount.signum() > 0) {
+        if (paymentStatus == PaymentStatus.PREPAID) {
+            if (paidAmount == null || paidAmount.signum() <= 0) {
+                throw new InvalidOrderException("Для предоплаты укажите внесённую сумму");
+            }
+            if (paidAmount.compareTo(totalAmount) >= 0) {
+                throw new InvalidOrderException("Предоплата должна быть меньше суммы заказа");
+            }
+            return paidAmount;
+        }
+
+        if (paidAmount != null && paidAmount.signum() > 0) {
             throw new InvalidOrderException(
-                "Сумму предоплаты можно указывать только для статуса «Предоплата»");
+                "Внесённую сумму можно указывать только для статуса «Предоплата»");
         }
         return null;
     }

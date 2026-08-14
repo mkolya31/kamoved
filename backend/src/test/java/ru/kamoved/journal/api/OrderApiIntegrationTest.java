@@ -84,6 +84,8 @@ class OrderApiIntegrationTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.type").value("ORDER"))
             .andExpect(jsonPath("$.paymentStatus").value("PREPAID"))
+            .andExpect(jsonPath("$.prepaymentAmount").value(40000))
+            .andExpect(jsonPath("$.remainingAmount").value(50935))
             .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
             .andExpect(jsonPath("$.totalAmount").value(90935))
             .andExpect(jsonPath("$.clientName").value("Владимир"))
@@ -185,6 +187,142 @@ class OrderApiIntegrationTest {
                 .content("""
                     {
                       "executionStatus": "CANCELLED",
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(
+                "Заказ уже изменён другим пользователем. Обновите журнал и повторите действие"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void changesPaymentThroughAllStatusesWithoutChangingExecutionStatus() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"executionStatus\": \"IN_PRODUCTION\"")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.paymentStatus").value("UNPAID"))
+            .andExpect(jsonPath("$.remainingAmount").value(1000))
+            .andReturn();
+
+        long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
+            .get("id").asLong();
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PREPAID",
+                      "paidAmount": 400,
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paymentStatus").value("PREPAID"))
+            .andExpect(jsonPath("$.prepaymentAmount").value(400))
+            .andExpect(jsonPath("$.remainingAmount").value(600))
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
+            .andExpect(jsonPath("$.version").value(1));
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PAID",
+                      "version": 1
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paymentStatus").value("PAID"))
+            .andExpect(jsonPath("$.prepaymentAmount").isEmpty())
+            .andExpect(jsonPath("$.remainingAmount").value(0))
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
+            .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "UNPAID",
+                      "version": 2
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paymentStatus").value("UNPAID"))
+            .andExpect(jsonPath("$.remainingAmount").value(1000))
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
+            .andExpect(jsonPath("$.version").value(3));
+
+        mockMvc.perform(get("/api/journal/{id}", orderId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paymentStatus").value("UNPAID"))
+            .andExpect(jsonPath("$.prepaymentAmount").isEmpty())
+            .andExpect(jsonPath("$.remainingAmount").value(1000))
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void validatesPaymentAmountAndRejectsStalePaymentVersion() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"paymentStatus\": \"UNPAID\"")))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
+            .get("id").asLong();
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PREPAID",
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Для предоплаты укажите внесённую сумму"));
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PREPAID",
+                      "paidAmount": 1001,
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Предоплата должна быть меньше суммы заказа"));
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PREPAID",
+                      "paidAmount": 400,
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.version").value(1));
+
+        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "paymentStatus": "PAID",
                       "version": 0
                     }
                     """))

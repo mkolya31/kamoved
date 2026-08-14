@@ -17,6 +17,7 @@ import {
 } from '../lib/format'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
+import { PaymentDialog } from './PaymentDialog'
 import { SaleDialog } from './SaleDialog'
 
 interface JournalPageProps {
@@ -38,6 +39,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [details, setDetails] = useState<Map<number, JournalEntryDetails>>(new Map())
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
+  const [paymentEntry, setPaymentEntry] = useState<JournalEntry | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -139,6 +141,24 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     } finally {
       setUpdatingStatusId(null)
     }
+  }
+
+  function handlePaymentUpdated(updated: JournalEntry) {
+    setEntries((current) => current.map((entry) => entry.id === updated.id ? updated : entry))
+    setDetails((current) => {
+      const loaded = current.get(updated.id)
+      if (!loaded) return current
+      const next = new Map(current)
+      next.set(updated.id, {
+        ...loaded,
+        paymentStatus: updated.paymentStatus,
+        prepaymentAmount: updated.prepaymentAmount,
+        remainingAmount: updated.remainingAmount,
+        version: updated.version,
+      })
+      return next
+    })
+    setPaymentEntry(null)
   }
 
   return (
@@ -271,8 +291,35 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           </span>
                           <strong className="entry-total">{formatMoney(entry.totalAmount)}</strong>
                           <span className="status-stack">
-                            <span className={`status status-payment-${entry.paymentStatus.toLowerCase()}`}>
-                              {paymentLabels[entry.paymentStatus]}
+                            <span className="payment-status-summary">
+                              {isOrder ? (
+                                <button
+                                  className={`status payment-status-button status-payment-${entry.paymentStatus.toLowerCase()}`}
+                                  type="button"
+                                  onClick={() => setPaymentEntry(entry)}
+                                  aria-label={`Изменить оплату заказа З-${entry.id}: ${paymentLabels[entry.paymentStatus]}`}
+                                >
+                                  <span>{paymentLabels[entry.paymentStatus]}</span>
+                                  {entry.executionStatus !== 'COMPLETED'
+                                    && entry.paymentStatus !== 'PAID' && (
+                                    <svg
+                                      className="payment-status-edit-icon"
+                                      viewBox="0 0 16 16"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M10.7 2.3a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2L5.2 13.8l-3 .7.7-3L10.7 2.3Z" />
+                                      <path d="m9.7 3.3 3 3" />
+                                    </svg>
+                                  )}
+                                </button>
+                              ) : (
+                                <span className={`status status-payment-${entry.paymentStatus.toLowerCase()}`}>
+                                  {paymentLabels[entry.paymentStatus]}
+                                </span>
+                              )}
+                              {isOrder && entry.paymentStatus === 'PREPAID' && (
+                                <small>Осталось {formatMoney(entry.remainingAmount)}</small>
+                              )}
                             </span>
                             {isOrder ? (
                               <select
@@ -345,12 +392,24 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 )}
                                 <section>
                                   <h4>Детали</h4>
-                                  {entryDetails.paymentStatus === 'PREPAID' && (
-                                    <p>
-                                      <span>Предоплата: {formatMoney(entryDetails.prepaymentAmount ?? 0)}</span>
-                                      <strong>Остаток: {formatMoney(entryDetails.remainingAmount)}</strong>
-                                    </p>
-                                  )}
+                                  <dl className="payment-details">
+                                    <div>
+                                      <dt>Сумма заказа</dt>
+                                      <dd>{formatMoney(entryDetails.totalAmount)}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Внесено</dt>
+                                      <dd>{formatMoney(
+                                        entryDetails.paymentStatus === 'PAID'
+                                          ? entryDetails.totalAmount
+                                          : (entryDetails.prepaymentAmount ?? 0),
+                                      )}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Осталось</dt>
+                                      <dd>{formatMoney(entryDetails.remainingAmount)}</dd>
+                                    </div>
+                                  </dl>
                                   {entryDetails.fulfillmentMethod && (
                                     <p>
                                       <strong>{fulfillmentLabels[entryDetails.fulfillmentMethod]}</strong>
@@ -398,6 +457,14 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
             setExpanded(new Set())
           }}
+        />
+      )}
+
+      {paymentEntry && (
+        <PaymentDialog
+          entry={paymentEntry}
+          onClose={() => setPaymentEntry(null)}
+          onUpdated={handlePaymentUpdated}
         />
       )}
     </div>

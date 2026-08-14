@@ -131,12 +131,13 @@ public class JournalEntry {
         this.totalAmount = totalAmount;
     }
 
-    public void setPrepaymentAmount(BigDecimal prepaymentAmount) {
-        this.prepaymentAmount = prepaymentAmount;
-    }
-
     public void changeExecutionStatus(ExecutionStatus executionStatus) {
         this.executionStatus = executionStatus;
+    }
+
+    public void changePayment(PaymentStatus paymentStatus, BigDecimal prepaymentAmount) {
+        this.paymentStatus = paymentStatus;
+        this.prepaymentAmount = prepaymentAmount;
     }
 
     @PrePersist
