@@ -378,74 +378,87 @@ export function OrderDialog({ onClose, onCreated }: OrderDialogProps) {
             <header>
               <h3>Состояние заказа</h3>
             </header>
-            <div className="order-settings-grid">
-              <label>
-                Статус оплаты
-                <select
-                  value={paymentStatus}
-                  onChange={(event) => {
-                    const next = event.target.value as PaymentStatus
-                    setPaymentStatus(next)
-                    if (next !== 'PREPAID') setPrepaymentAmount('')
-                  }}
-                >
-                  {Object.entries(paymentLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              {paymentStatus === 'PREPAID' && (
-                <label>
-                  Сумма предоплаты, ₽
-                  <input
-                    inputMode="decimal"
-                    value={prepaymentAmount}
-                    onChange={(event) => setPrepaymentAmount(event.target.value)}
-                    placeholder="0"
-                    required
-                  />
+            <div className="order-settings-groups">
+              <div className="order-settings-group">
+                <label className="order-settings-primary-field">
+                  Статус оплаты
+                  <select
+                    value={paymentStatus}
+                    onChange={(event) => {
+                      const next = event.target.value as PaymentStatus
+                      setPaymentStatus(next)
+                      if (next !== 'PREPAID') setPrepaymentAmount('')
+                    }}
+                  >
+                    {Object.entries(paymentLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </label>
-              )}
-              <label>
-                Статус исполнения
-                <select
-                  value={executionStatus}
-                  onChange={(event) => setExecutionStatus(event.target.value as ExecutionStatus)}
-                >
-                  {Object.entries(executionLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Способ получения
-                <select
-                  value={fulfillmentMethod}
-                  onChange={(event) => {
-                    const next = event.target.value as FulfillmentMethod | ''
-                    setFulfillmentMethod(next)
-                    if (next !== 'DELIVERY') setDeliveryAddress('')
-                  }}
-                >
-                  <option value="">Не указан</option>
-                  {Object.entries(fulfillmentLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              {fulfillmentMethod === 'DELIVERY' && (
-                <label className="wide-field">
-                  Адрес доставки
-                  <input
-                    value={deliveryAddress}
-                    onChange={(event) => setDeliveryAddress(event.target.value)}
-                    maxLength={2000}
-                    placeholder="Населённый пункт, улица, участок или ориентир"
-                    required
-                  />
+                {paymentStatus === 'PREPAID' && (
+                  <div className="order-settings-dependent-fields">
+                    <label>
+                      Сумма предоплаты, ₽
+                      <input
+                        inputMode="decimal"
+                        value={prepaymentAmount}
+                        onChange={(event) => setPrepaymentAmount(event.target.value)}
+                        placeholder="0"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="order-settings-group">
+                <label className="order-settings-primary-field">
+                  Статус исполнения
+                  <select
+                    value={executionStatus}
+                    onChange={(event) => setExecutionStatus(event.target.value as ExecutionStatus)}
+                  >
+                    {Object.entries(executionLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </label>
-              )}
-              <label className="wide-field">
+              </div>
+
+              <div className="order-settings-group">
+                <label className="order-settings-primary-field">
+                  Способ получения
+                  <select
+                    value={fulfillmentMethod}
+                    onChange={(event) => {
+                      const next = event.target.value as FulfillmentMethod | ''
+                      setFulfillmentMethod(next)
+                      if (next !== 'DELIVERY') setDeliveryAddress('')
+                    }}
+                  >
+                    <option value="">Не указан</option>
+                    {Object.entries(fulfillmentLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                {fulfillmentMethod === 'DELIVERY' && (
+                  <div className="order-settings-dependent-fields">
+                    <label>
+                      Адрес доставки
+                      <input
+                        value={deliveryAddress}
+                        onChange={(event) => setDeliveryAddress(event.target.value)}
+                        maxLength={2000}
+                        placeholder="Населённый пункт, улица, участок или ориентир"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <label className="order-settings-comment">
                 Комментарий к заказу
                 <textarea
                   value={comment}
