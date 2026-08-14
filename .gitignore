@@ -5,10 +5,9 @@
 !.env.example
 !.env.*.example
 /.pnpm-store/
-/.codex-*
 
-# Generate image drafts here; promote only approved assets into tracked folders.
-/.image-drafts/
+# Codex-generated drafts and other local working files.
+/.codex-*
 
 backend/target/
 backend/.mvn-cache/
