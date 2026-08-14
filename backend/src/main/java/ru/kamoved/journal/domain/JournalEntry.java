@@ -93,8 +93,10 @@ public class JournalEntry {
         this.createdBy = createdBy;
     }
 
-    public static JournalEntry sale(AppUser createdBy) {
-        return new JournalEntry(createdBy);
+    public static JournalEntry sale(AppUser createdBy, String comment) {
+        JournalEntry entry = new JournalEntry(createdBy);
+        entry.comment = comment;
+        return entry;
     }
 
     public static JournalEntry order(

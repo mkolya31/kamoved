@@ -421,7 +421,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 </section>
                               </div>
                             ) : (
-                              <p>Продажа автоматически отмечена как оплаченная и завершённая.</p>
+                              <div className="sale-details-meta">
+                                <p>Продажа автоматически отмечена как оплаченная и завершённая.</p>
+                                {entryDetails.comment && (
+                                  <p className="order-comment">{entryDetails.comment}</p>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}

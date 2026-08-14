@@ -97,10 +97,10 @@ export async function loadJournalEntry(id: number): Promise<JournalEntryDetails>
   return response.json() as Promise<JournalEntryDetails>
 }
 
-export function createSale(items: SaleItemInput[]): Promise<JournalEntry> {
+export function createSale(items: SaleItemInput[], comment?: string): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/sales', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, comment }),
   })
 }
 

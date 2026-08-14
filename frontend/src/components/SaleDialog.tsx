@@ -54,6 +54,7 @@ function lineTotal(item: DraftItem): number {
 
 export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
   const [items, setItems] = useState<DraftItem[]>([emptyItem()])
+  const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -93,7 +94,7 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
 
     setSubmitting(true)
     try {
-      onCreated(await createSale(payload))
+      onCreated(await createSale(payload, comment.trim() || undefined))
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Не удалось сохранить продажу')
     } finally {
@@ -193,6 +194,17 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
           >
             + Добавить позицию
           </button>
+
+          <label className="sale-comment">
+            Комментарий <span>необязательно</span>
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              maxLength={5000}
+              rows={3}
+              placeholder="Служебная пометка к продаже"
+            />
+          </label>
 
           {error && <p className="form-error" role="alert">{error}</p>}
 
