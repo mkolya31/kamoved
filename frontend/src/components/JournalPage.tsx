@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ApiError, loadJournal, loadJournalEntry, logout } from '../lib/api'
+import {
+  ApiError,
+  loadJournal,
+  loadJournalEntry,
+  logout,
+  updateOrderExecutionStatus,
+} from '../lib/api'
 import {
   executionLabels,
   formatDate,
@@ -9,7 +15,7 @@ import {
   fulfillmentLabels,
   paymentLabels,
 } from '../lib/format'
-import type { JournalEntry, JournalEntryDetails, User } from '../types'
+import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { SaleDialog } from './SaleDialog'
 
@@ -17,6 +23,9 @@ interface JournalPageProps {
   user: User
   onLogout: () => void
 }
+
+const executionStatuses = Object.keys(executionLabels) as ExecutionStatus[]
+const terminalExecutionStatuses: ExecutionStatus[] = ['COMPLETED', 'CANCELLED']
 
 export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [mode, setMode] = useState<'all' | 'active'>('all')
@@ -28,6 +37,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [orderOpen, setOrderOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [details, setDetails] = useState<Map<number, JournalEntryDetails>>(new Map())
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -88,6 +98,46 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
         })
         setError(cause instanceof ApiError ? cause.message : 'Не удалось открыть запись')
       }
+    }
+  }
+
+  async function handleExecutionStatusChange(entry: JournalEntry, executionStatus: ExecutionStatus) {
+    if (executionStatus === entry.executionStatus) return
+
+    setUpdatingStatusId(entry.id)
+    setError('')
+    try {
+      const updated = await updateOrderExecutionStatus(entry.id, executionStatus, entry.version)
+      setEntries((current) => (
+        mode === 'active' && terminalExecutionStatuses.includes(updated.executionStatus)
+          ? current.filter(({ id }) => id !== updated.id)
+          : current.map((item) => item.id === updated.id ? updated : item)
+      ))
+      setDetails((current) => {
+        const loaded = current.get(updated.id)
+        if (!loaded) return current
+        const next = new Map(current)
+        next.set(updated.id, {
+          ...loaded,
+          executionStatus: updated.executionStatus,
+          version: updated.version,
+        })
+        return next
+      })
+      if (mode === 'active' && terminalExecutionStatuses.includes(updated.executionStatus)) {
+        setExpanded((current) => {
+          const next = new Set(current)
+          next.delete(updated.id)
+          return next
+        })
+      }
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'Не удалось изменить статус заказа')
+      if (cause instanceof ApiError && cause.status === 409) {
+        await refresh()
+      }
+    } finally {
+      setUpdatingStatusId(null)
     }
   }
 
@@ -191,12 +241,14 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                     const entryDetails = details.get(entry.id)
                     return (
                       <article className="entry-card" key={entry.id}>
-                        <button
-                          className="entry-summary"
-                          type="button"
-                          onClick={() => void toggleExpanded(entry.id)}
-                          aria-expanded={isExpanded}
-                        >
+                        <div className="entry-summary">
+                          <button
+                            className="entry-summary-toggle"
+                            type="button"
+                            onClick={() => void toggleExpanded(entry.id)}
+                            aria-expanded={isExpanded}
+                            aria-label={`${isExpanded ? 'Свернуть' : 'Открыть'} запись ${isOrder ? 'З' : 'П'}-${entry.id}`}
+                          />
                           <span className="entry-number">
                             <strong>{isOrder ? 'З' : 'П'}-{entry.id}</strong>
                             <small>{formatTime(entry.createdAt)}</small>
@@ -222,12 +274,29 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                             <span className={`status status-payment-${entry.paymentStatus.toLowerCase()}`}>
                               {paymentLabels[entry.paymentStatus]}
                             </span>
-                            <span className={`status status-execution-${entry.executionStatus.toLowerCase()}`}>
-                              {executionLabels[entry.executionStatus]}
-                            </span>
+                            {isOrder ? (
+                              <select
+                                className={`status quick-status-select status-execution-${entry.executionStatus.toLowerCase()}`}
+                                aria-label={`Статус исполнения заказа З-${entry.id}`}
+                                value={entry.executionStatus}
+                                disabled={updatingStatusId === entry.id}
+                                onChange={(event) => void handleExecutionStatusChange(
+                                  entry,
+                                  event.target.value as ExecutionStatus,
+                                )}
+                              >
+                                {executionStatuses.map((status) => (
+                                  <option key={status} value={status}>{executionLabels[status]}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className={`status status-execution-${entry.executionStatus.toLowerCase()}`}>
+                                {executionLabels[entry.executionStatus]}
+                              </span>
+                            )}
                           </span>
                           <span className="chevron" aria-hidden="true">{isExpanded ? '⌃' : '⌄'}</span>
-                        </button>
+                        </div>
 
                         {isExpanded && !entryDetails && (
                           <div className="entry-details-loading">

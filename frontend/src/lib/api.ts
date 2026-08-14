@@ -4,6 +4,7 @@ import type {
   JournalPage,
   OrderInput,
   SaleItemInput,
+  ExecutionStatus,
   User,
 } from '../types'
 
@@ -106,5 +107,16 @@ export function createOrder(order: OrderInput): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/orders', {
     method: 'POST',
     body: JSON.stringify(order),
+  })
+}
+
+export function updateOrderExecutionStatus(
+  id: number,
+  executionStatus: ExecutionStatus,
+  version: number,
+): Promise<JournalEntry> {
+  return mutate<JournalEntry>(`/api/orders/${id}/execution-status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ executionStatus, version }),
   })
 }

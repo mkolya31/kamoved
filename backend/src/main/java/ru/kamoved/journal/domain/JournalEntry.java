@@ -135,6 +135,10 @@ public class JournalEntry {
         this.prepaymentAmount = prepaymentAmount;
     }
 
+    public void changeExecutionStatus(ExecutionStatus executionStatus) {
+        this.executionStatus = executionStatus;
+    }
+
     @PrePersist
     void onCreate() {
         OffsetDateTime now = OffsetDateTime.now();

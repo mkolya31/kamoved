@@ -38,7 +38,8 @@ public class JournalEntryMapper {
             client == null ? null : client.getName(),
             client == null ? null : client.getPhone(),
             entry.getFulfillmentMethod(),
-            entry.getDeliveryAddress()
+            entry.getDeliveryAddress(),
+            entry.getVersion()
         );
     }
 

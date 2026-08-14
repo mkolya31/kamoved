@@ -51,6 +51,7 @@ export interface JournalEntry {
   clientPhone: string | null
   fulfillmentMethod: FulfillmentMethod | null
   deliveryAddress: string | null
+  version: number
 }
 
 export interface JournalContact {

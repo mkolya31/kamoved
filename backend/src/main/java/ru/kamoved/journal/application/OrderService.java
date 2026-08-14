@@ -9,6 +9,7 @@ import ru.kamoved.journal.api.dto.CreateOrderRequest;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
 import ru.kamoved.journal.domain.ContactType;
 import ru.kamoved.journal.domain.EntryContact;
+import ru.kamoved.journal.domain.EntryType;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
 import ru.kamoved.journal.domain.JournalEntry;
@@ -94,6 +95,24 @@ public class OrderService {
             : request.additionalContacts();
         additionalContacts.forEach(contact -> addContact(order, ContactType.ADDITIONAL, contact));
 
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntrySummary updateExecutionStatus(
+        long orderId,
+        ExecutionStatus executionStatus,
+        long expectedVersion
+    ) {
+        JournalEntry order = entries.findById(orderId).orElseThrow(OrderNotFoundException::new);
+        if (order.getType() != EntryType.ORDER) {
+            throw new OrderNotFoundException();
+        }
+        if (order.getVersion() != expectedVersion) {
+            throw new OrderVersionConflictException();
+        }
+
+        order.changeExecutionStatus(executionStatus);
         return mapper.toSummary(entries.saveAndFlush(order));
     }
 

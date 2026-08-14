@@ -19,6 +19,7 @@ public record JournalEntrySummary(
     String clientName,
     String clientPhone,
     FulfillmentMethod fulfillmentMethod,
-    String deliveryAddress
+    String deliveryAddress,
+    long version
 ) {
 }
