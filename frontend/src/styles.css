@@ -168,12 +168,6 @@ textarea:focus-visible {
   letter-spacing: -0.04em;
 }
 
-.login-lead {
-  margin: 12px 0 30px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
 .login-form {
   display: grid;
   gap: 18px;
