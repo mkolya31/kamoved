@@ -15,6 +15,7 @@ import {
   fulfillmentLabels,
   paymentLabels,
 } from '../lib/format'
+import { summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { PaymentDialog } from './PaymentDialog'
@@ -40,6 +41,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [details, setDetails] = useState<Map<number, JournalEntryDetails>>(new Map())
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
   const [paymentEntry, setPaymentEntry] = useState<JournalEntry | null>(null)
+  const [editingOrder, setEditingOrder] = useState<JournalEntryDetails | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -159,6 +161,32 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
       return next
     })
     setPaymentEntry(null)
+  }
+
+  function handleOrderUpdated(updated: JournalEntryDetails) {
+    const removeFromActive = mode === 'active'
+      && terminalExecutionStatuses.includes(updated.executionStatus)
+
+    setEntries((current) => (
+      removeFromActive
+        ? current.filter(({ id }) => id !== updated.id)
+        : current.map((entry) => (
+          entry.id === updated.id ? summaryFromDetails(entry, updated) : entry
+        ))
+    ))
+    setDetails((current) => {
+      const next = new Map(current)
+      removeFromActive ? next.delete(updated.id) : next.set(updated.id, updated)
+      return next
+    })
+    if (removeFromActive) {
+      setExpanded((current) => {
+        const next = new Set(current)
+        next.delete(updated.id)
+        return next
+      })
+    }
+    setEditingOrder(null)
   }
 
   return (
@@ -370,58 +398,74 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                               </ul>
                             </div>
                             {isOrder ? (
-                              <div className="order-details-meta">
-                                {(entryDetails.client || entryDetails.additionalContacts.length > 0) && (
+                              <>
+                                <div className="order-details-meta">
+                                  {(entryDetails.client || entryDetails.additionalContacts.length > 0) && (
+                                    <section>
+                                      <h4>Контакты</h4>
+                                      {entryDetails.client && (
+                                        <p>
+                                          <strong>{entryDetails.client.name || 'Клиент'}</strong>
+                                          {entryDetails.client.phone && <span>{entryDetails.client.phone}</span>}
+                                          {entryDetails.client.comment && <small>{entryDetails.client.comment}</small>}
+                                        </p>
+                                      )}
+                                      {entryDetails.additionalContacts.map((contact) => (
+                                        <p key={contact.id}>
+                                          <strong>{contact.name || 'Дополнительный контакт'}</strong>
+                                          {contact.phone && <span>{contact.phone}</span>}
+                                          {contact.comment && <small>{contact.comment}</small>}
+                                        </p>
+                                      ))}
+                                    </section>
+                                  )}
                                   <section>
-                                    <h4>Контакты</h4>
-                                    {entryDetails.client && (
+                                    <h4>Детали</h4>
+                                    <dl className="payment-details">
+                                      <div>
+                                        <dt>Сумма заказа</dt>
+                                        <dd>{formatMoney(entryDetails.totalAmount)}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>Внесено</dt>
+                                        <dd>{formatMoney(
+                                          entryDetails.paymentStatus === 'PAID'
+                                            ? entryDetails.totalAmount
+                                            : (entryDetails.prepaymentAmount ?? 0),
+                                        )}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>Осталось</dt>
+                                        <dd>{formatMoney(entryDetails.remainingAmount)}</dd>
+                                      </div>
+                                    </dl>
+                                    {entryDetails.fulfillmentMethod && (
                                       <p>
-                                        <strong>{entryDetails.client.name || 'Клиент'}</strong>
-                                        {entryDetails.client.phone && <span>{entryDetails.client.phone}</span>}
-                                        {entryDetails.client.comment && <small>{entryDetails.client.comment}</small>}
+                                        <strong>{fulfillmentLabels[entryDetails.fulfillmentMethod]}</strong>
+                                        {entryDetails.deliveryAddress && <span>{entryDetails.deliveryAddress}</span>}
                                       </p>
                                     )}
-                                    {entryDetails.additionalContacts.map((contact) => (
-                                      <p key={contact.id}>
-                                        <strong>{contact.name || 'Дополнительный контакт'}</strong>
-                                        {contact.phone && <span>{contact.phone}</span>}
-                                        {contact.comment && <small>{contact.comment}</small>}
-                                      </p>
-                                    ))}
+                                    {entryDetails.comment && <p className="order-comment">{entryDetails.comment}</p>}
+                                    <small>Создал: {entryDetails.createdByDisplayName}</small>
                                   </section>
-                                )}
-                                <section>
-                                  <h4>Детали</h4>
-                                  <dl className="payment-details">
-                                    <div>
-                                      <dt>Сумма заказа</dt>
-                                      <dd>{formatMoney(entryDetails.totalAmount)}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>Внесено</dt>
-                                      <dd>{formatMoney(
-                                        entryDetails.paymentStatus === 'PAID'
-                                          ? entryDetails.totalAmount
-                                          : (entryDetails.prepaymentAmount ?? 0),
-                                      )}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>Осталось</dt>
-                                      <dd>{formatMoney(entryDetails.remainingAmount)}</dd>
-                                    </div>
-                                  </dl>
-                                  {entryDetails.fulfillmentMethod && (
-                                    <p>
-                                      <strong>{fulfillmentLabels[entryDetails.fulfillmentMethod]}</strong>
-                                      {entryDetails.deliveryAddress && <span>{entryDetails.deliveryAddress}</span>}
-                                    </p>
-                                  )}
-                                  {entryDetails.comment && <p className="order-comment">{entryDetails.comment}</p>}
-                                  <small>Создал: {entryDetails.createdByDisplayName}</small>
-                                </section>
-                              </div>
+                                </div>
+                                <div className="order-details-actions">
+                                  <button
+                                    className="button button-quiet"
+                                    type="button"
+                                    onClick={() => setEditingOrder(entryDetails)}
+                                  >
+                                    Изменить заказ
+                                  </button>
+                                </div>
+                              </>
                             ) : (
-                              <p>Продажа автоматически отмечена как оплаченная и завершённая.</p>
+                              <div className="sale-details-meta">
+                                <p>Продажа автоматически отмечена как оплаченная и завершённая.</p>
+                                {entryDetails.comment && (
+                                  <p className="order-comment">{entryDetails.comment}</p>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
@@ -465,6 +509,14 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           entry={paymentEntry}
           onClose={() => setPaymentEntry(null)}
           onUpdated={handlePaymentUpdated}
+        />
+      )}
+
+      {editingOrder && (
+        <OrderDialog
+          order={editingOrder}
+          onClose={() => setEditingOrder(null)}
+          onUpdated={handleOrderUpdated}
         />
       )}
     </div>

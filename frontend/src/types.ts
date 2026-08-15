@@ -115,3 +115,7 @@ export interface OrderInput {
   deliveryAddress?: string
   comment?: string
 }
+
+export interface UpdateOrderInput extends OrderInput {
+  version: number
+}

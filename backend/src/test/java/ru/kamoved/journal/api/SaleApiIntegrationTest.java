@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.nullValue;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -75,5 +76,47 @@ class SaleApiIntegrationTest {
         mockMvc.perform(get("/api/journal?mode=active"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void savesTrimmedCommentAndNormalizesBlankCommentToNull() throws Exception {
+        MvcResult commentedSale = mockMvc.perform(post("/api/sales")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "items": [{"name": "Кирпич", "quantity": 1, "unitPrice": 100}],
+                      "comment": "  Позвонить перед выдачей  "
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long commentedSaleId = objectMapper.readTree(
+            commentedSale.getResponse().getContentAsByteArray()).get("id").asLong();
+
+        mockMvc.perform(get("/api/journal/{id}", commentedSaleId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.comment").value("Позвонить перед выдачей"));
+
+        MvcResult blankCommentSale = mockMvc.perform(post("/api/sales")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "items": [{"name": "Песок", "quantity": 1, "unitPrice": 50}],
+                      "comment": "   "
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long blankCommentSaleId = objectMapper.readTree(
+            blankCommentSale.getResponse().getContentAsByteArray()).get("id").asLong();
+
+        mockMvc.perform(get("/api/journal/{id}", blankCommentSaleId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.comment").value(nullValue()));
     }
 }

@@ -633,7 +633,8 @@ input::placeholder {
 .entry-details {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.35fr);
-  gap: 40px;
+  column-gap: 40px;
+  row-gap: 22px;
   padding: 22px 132px 26px 126px;
   border-top: 1px dashed #d8d0c7;
   background: #f9f6f1;
@@ -684,6 +685,14 @@ input::placeholder {
   gap: 22px;
 }
 
+.order-details-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #ded6cc;
+}
+
 .order-details-meta section,
 .order-details-meta p {
   display: grid;
@@ -701,11 +710,25 @@ input::placeholder {
   color: var(--ink);
 }
 
-.order-details-meta .order-comment {
+.order-details-meta .order-comment,
+.sale-details-meta .order-comment {
   padding: 10px 12px;
   border-left: 3px solid #d9c4ad;
   background: #fffdf9;
   white-space: pre-wrap;
+}
+
+.sale-details-meta {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.sale-details-meta p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .payment-details {
@@ -1141,6 +1164,23 @@ input::placeholder {
 
 .add-item {
   margin: 16px 32px 0;
+}
+
+.sale-comment {
+  display: grid;
+  gap: 7px;
+  margin: 20px 32px 0;
+  color: #4d4741;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sale-comment > span {
+  margin-top: -23px;
+  justify-self: end;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .sale-dialog > form > .form-error {

@@ -7,6 +7,7 @@ import type {
   SaleItemInput,
   ExecutionStatus,
   User,
+  UpdateOrderInput,
 } from '../types'
 
 interface CsrfResponse {
@@ -97,16 +98,23 @@ export async function loadJournalEntry(id: number): Promise<JournalEntryDetails>
   return response.json() as Promise<JournalEntryDetails>
 }
 
-export function createSale(items: SaleItemInput[]): Promise<JournalEntry> {
+export function createSale(items: SaleItemInput[], comment?: string): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/sales', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, comment }),
   })
 }
 
 export function createOrder(order: OrderInput): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/orders', {
     method: 'POST',
+    body: JSON.stringify(order),
+  })
+}
+
+export function updateOrder(id: number, order: UpdateOrderInput): Promise<JournalEntryDetails> {
+  return mutate<JournalEntryDetails>(`/api/orders/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(order),
   })
 }

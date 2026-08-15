@@ -93,8 +93,10 @@ public class JournalEntry {
         this.createdBy = createdBy;
     }
 
-    public static JournalEntry sale(AppUser createdBy) {
-        return new JournalEntry(createdBy);
+    public static JournalEntry sale(AppUser createdBy, String comment) {
+        JournalEntry entry = new JournalEntry(createdBy);
+        entry.comment = comment;
+        return entry;
     }
 
     public static JournalEntry order(
@@ -127,6 +129,16 @@ public class JournalEntry {
         contact.attachTo(this);
     }
 
+    public void replaceItems(List<JournalEntryItem> newItems) {
+        items.clear();
+        newItems.forEach(this::addItem);
+    }
+
+    public void replaceContacts(List<EntryContact> newContacts) {
+        contacts.clear();
+        newContacts.forEach(this::addContact);
+    }
+
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
     }
@@ -138,6 +150,18 @@ public class JournalEntry {
     public void changePayment(PaymentStatus paymentStatus, BigDecimal prepaymentAmount) {
         this.paymentStatus = paymentStatus;
         this.prepaymentAmount = prepaymentAmount;
+    }
+
+    public void changeFulfillment(
+        FulfillmentMethod fulfillmentMethod,
+        String deliveryAddress
+    ) {
+        this.fulfillmentMethod = fulfillmentMethod;
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public void changeComment(String comment) {
+        this.comment = comment;
     }
 
     @PrePersist

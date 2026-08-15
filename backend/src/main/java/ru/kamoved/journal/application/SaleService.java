@@ -36,7 +36,7 @@ public class SaleService {
     @Transactional
     public JournalEntrySummary create(CreateSaleRequest request, String username) {
         AppUser creator = users.findByUsernameIgnoreCase(username).orElseThrow();
-        JournalEntry sale = JournalEntry.sale(creator);
+        JournalEntry sale = JournalEntry.sale(creator, trimToNull(request.comment()));
 
         request.items().forEach(requestItem -> {
             BigDecimal lineTotal = moneyCalculator.calculateLineTotal(
@@ -58,5 +58,11 @@ public class SaleService {
 
         return mapper.toSummary(entries.saveAndFlush(sale));
     }
-}
 
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+}

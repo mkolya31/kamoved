@@ -38,5 +38,5 @@ public record CreateOrderRequest(
 
     @Size(max = 5000)
     String comment
-) {
+) implements OrderDataRequest {
 }
