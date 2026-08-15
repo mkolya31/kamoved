@@ -7,6 +7,7 @@ import type {
   SaleItemInput,
   ExecutionStatus,
   User,
+  UpdateOrderInput,
 } from '../types'
 
 interface CsrfResponse {
@@ -107,6 +108,13 @@ export function createSale(items: SaleItemInput[]): Promise<JournalEntry> {
 export function createOrder(order: OrderInput): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/orders', {
     method: 'POST',
+    body: JSON.stringify(order),
+  })
+}
+
+export function updateOrder(id: number, order: UpdateOrderInput): Promise<JournalEntryDetails> {
+  return mutate<JournalEntryDetails>(`/api/orders/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(order),
   })
 }

@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.kamoved.journal.api.dto.CreateOrderRequest;
+import ru.kamoved.journal.api.dto.JournalEntryDetails;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
+import ru.kamoved.journal.api.dto.UpdateOrderRequest;
 import ru.kamoved.journal.api.dto.UpdateOrderPaymentRequest;
 import ru.kamoved.journal.api.dto.UpdateOrderStatusRequest;
 import ru.kamoved.journal.application.OrderService;
@@ -33,6 +35,14 @@ public class OrderController {
         Authentication authentication
     ) {
         return orderService.create(request, authentication.getName());
+    }
+
+    @PatchMapping("/{id}")
+    JournalEntryDetails update(
+        @PathVariable long id,
+        @Valid @RequestBody UpdateOrderRequest request
+    ) {
+        return orderService.update(id, request);
     }
 
     @PatchMapping("/{id}/execution-status")
