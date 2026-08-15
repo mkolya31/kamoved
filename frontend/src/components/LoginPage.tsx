@@ -28,14 +28,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <main className="login-shell">
-      <section className="login-card" aria-labelledby="login-title">
-        <div className="brand-mark" aria-hidden="true">К</div>
-        <p className="eyebrow">Электронный журнал заказов</p>
-        <h1 id="login-title">Камовед</h1>
-        <p className="login-lead">
-          Продажи, заказы и история покупателей в одном понятном журнале.
-        </p>
-
+      <section className="login-card">
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
             Логин
@@ -60,7 +53,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button button-primary button-wide" disabled={submitting}>
-            {submitting ? 'Входим…' : 'Войти в журнал'}
+            {submitting ? 'Входим…' : 'Войти'}
           </button>
         </form>
       </section>
