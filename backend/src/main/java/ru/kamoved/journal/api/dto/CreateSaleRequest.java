@@ -9,7 +9,9 @@ import java.util.List;
 public record CreateSaleRequest(
     @NotEmpty
     @Size(max = 100)
-    List<@Valid SaleItemRequest> items
+    List<@Valid SaleItemRequest> items,
+
+    @Size(max = 5000)
+    String comment
 ) {
 }
-
