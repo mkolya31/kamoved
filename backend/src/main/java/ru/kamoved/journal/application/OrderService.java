@@ -6,7 +6,10 @@ import ru.kamoved.auth.domain.AppUser;
 import ru.kamoved.auth.persistence.AppUserRepository;
 import ru.kamoved.journal.api.dto.ContactRequest;
 import ru.kamoved.journal.api.dto.CreateOrderRequest;
+import ru.kamoved.journal.api.dto.JournalEntryDetails;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
+import ru.kamoved.journal.api.dto.OrderDataRequest;
+import ru.kamoved.journal.api.dto.UpdateOrderRequest;
 import ru.kamoved.journal.domain.ContactType;
 import ru.kamoved.journal.domain.EntryContact;
 import ru.kamoved.journal.domain.EntryType;
@@ -20,6 +23,7 @@ import ru.kamoved.journal.domain.PhoneNormalizer;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -48,54 +52,75 @@ public class OrderService {
     @Transactional
     public JournalEntrySummary create(CreateOrderRequest request, String username) {
         AppUser creator = users.findByUsernameIgnoreCase(username).orElseThrow();
+        JournalEntry order = JournalEntry.order(
+            creator,
+            ExecutionStatus.NEW,
+            PaymentStatus.UNPAID,
+            null,
+            null,
+            null,
+            null
+        );
+
+        applyOrderData(order, request);
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntryDetails update(long orderId, UpdateOrderRequest request) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, request.version());
+        applyOrderData(order, request);
+        return mapper.toDetails(entries.saveAndFlush(order));
+    }
+
+    private void applyOrderData(JournalEntry order, OrderDataRequest request) {
         PaymentStatus paymentStatus = request.paymentStatus() == null
             ? PaymentStatus.UNPAID
             : request.paymentStatus();
         ExecutionStatus executionStatus = request.executionStatus() == null
             ? ExecutionStatus.NEW
             : request.executionStatus();
-
         String deliveryAddress = validateAndNormalizeAddress(
             request.fulfillmentMethod(), request.deliveryAddress());
 
-        JournalEntry order = JournalEntry.order(
-            creator,
-            executionStatus,
-            paymentStatus,
-            null,
-            request.fulfillmentMethod(),
-            deliveryAddress,
-            trimToNull(request.comment())
-        );
-
-        request.items().forEach(requestItem -> {
+        List<JournalEntryItem> orderItems = request.items().stream().map(requestItem -> {
             BigDecimal lineTotal = moneyCalculator.calculateLineTotal(
                 requestItem.quantity(), requestItem.unitPrice());
-            order.addItem(new JournalEntryItem(
+            return new JournalEntryItem(
                 requestItem.catalogProductId(),
                 requestItem.name().trim(),
                 requestItem.quantity(),
                 requestItem.effectiveUnit(),
                 requestItem.unitPrice(),
                 lineTotal
-            ));
-        });
+            );
+        }).toList();
 
         BigDecimal totalAmount = moneyCalculator.calculateOrderTotal(
-            order.getItems().stream().map(JournalEntryItem::getLineTotal).toList());
-        order.setTotalAmount(totalAmount);
-
+            orderItems.stream().map(JournalEntryItem::getLineTotal).toList());
         BigDecimal prepaymentAmount = validateAndNormalizePrepayment(
             paymentStatus, request.prepaymentAmount(), totalAmount);
-        order.changePayment(paymentStatus, prepaymentAmount);
 
-        addContact(order, ContactType.CLIENT, request.client());
+        order.replaceItems(orderItems);
+        order.setTotalAmount(totalAmount);
+        order.changePayment(paymentStatus, prepaymentAmount);
+        order.changeExecutionStatus(executionStatus);
+        order.changeFulfillment(request.fulfillmentMethod(), deliveryAddress);
+        order.changeComment(trimToNull(request.comment()));
+
+        List<EntryContact> contacts = new ArrayList<>();
+        EntryContact client = createContact(ContactType.CLIENT, request.client());
+        if (client != null) {
+            contacts.add(client);
+        }
         List<ContactRequest> additionalContacts = request.additionalContacts() == null
             ? List.of()
             : request.additionalContacts();
-        additionalContacts.forEach(contact -> addContact(order, ContactType.ADDITIONAL, contact));
-
-        return mapper.toSummary(entries.saveAndFlush(order));
+        additionalContacts.stream()
+            .map(contact -> createContact(ContactType.ADDITIONAL, contact))
+            .filter(contact -> contact != null)
+            .forEach(contacts::add);
+        order.replaceContacts(contacts);
     }
 
     @Transactional
@@ -177,16 +202,16 @@ public class OrderService {
         return normalizedAddress;
     }
 
-    private void addContact(JournalEntry order, ContactType type, ContactRequest request) {
+    private EntryContact createContact(ContactType type, ContactRequest request) {
         if (request == null) {
-            return;
+            return null;
         }
 
         String name = trimToNull(request.name());
         String phone = trimToNull(request.phone());
         String comment = trimToNull(request.comment());
         if (name == null && phone == null && comment == null) {
-            return;
+            return null;
         }
 
         String normalizedPhone = phoneNormalizer.normalize(phone);
@@ -194,7 +219,7 @@ public class OrderService {
             throw new InvalidOrderException("Телефон должен содержать цифры");
         }
 
-        order.addContact(new EntryContact(type, name, phone, normalizedPhone, comment));
+        return new EntryContact(type, name, phone, normalizedPhone, comment);
     }
 
     private String trimToNull(String value) {

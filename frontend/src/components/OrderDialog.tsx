@@ -1,5 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react'
-import { ApiError, createOrder } from '../lib/api'
+import { ApiError, createOrder, updateOrder } from '../lib/api'
 import {
   executionLabels,
   formatMoney,
@@ -12,16 +12,32 @@ import type {
   ExecutionStatus,
   FulfillmentMethod,
   JournalEntry,
+  JournalEntryDetails,
+  JournalContact,
+  JournalItem,
   OrderInput,
   PaymentStatus,
   SaleItemInput,
   UnitOfMeasure,
 } from '../types'
 
-interface OrderDialogProps {
+interface OrderDialogBaseProps {
   onClose: () => void
-  onCreated: (order: JournalEntry) => void
 }
+
+interface CreateOrderDialogProps extends OrderDialogBaseProps {
+  order?: undefined
+  onCreated: (order: JournalEntry) => void
+  onUpdated?: never
+}
+
+interface EditOrderDialogProps extends OrderDialogBaseProps {
+  order: JournalEntryDetails
+  onCreated?: never
+  onUpdated: (order: JournalEntryDetails) => void
+}
+
+type OrderDialogProps = CreateOrderDialogProps | EditOrderDialogProps
 
 interface DraftItem {
   key: number
@@ -60,6 +76,25 @@ function emptyContact(): DraftContact {
   }
 }
 
+function itemDraft(item: JournalItem): DraftItem {
+  return {
+    key: nextItemKey++,
+    name: item.name,
+    quantity: String(item.quantity),
+    unit: item.unit,
+    unitPrice: String(item.unitPrice),
+  }
+}
+
+function contactDraft(contact?: JournalContact | null): DraftContact {
+  return {
+    key: nextContactKey++,
+    name: contact?.name ?? '',
+    phone: contact?.phone ?? '',
+    comment: contact?.comment ?? '',
+  }
+}
+
 function parseDecimal(value: string): number {
   return Number(value.replace(',', '.'))
 }
@@ -93,16 +128,26 @@ function contactPayload(contact: DraftContact): ContactInput | undefined {
   return Object.values(result).some(Boolean) ? result : undefined
 }
 
-export function OrderDialog({ onClose, onCreated }: OrderDialogProps) {
-  const [items, setItems] = useState<DraftItem[]>([emptyItem()])
-  const [client, setClient] = useState<DraftContact>(emptyContact())
-  const [additionalContacts, setAdditionalContacts] = useState<DraftContact[]>([])
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('UNPAID')
-  const [prepaymentAmount, setPrepaymentAmount] = useState('')
-  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('NEW')
-  const [fulfillmentMethod, setFulfillmentMethod] = useState<FulfillmentMethod | ''>('')
-  const [deliveryAddress, setDeliveryAddress] = useState('')
-  const [comment, setComment] = useState('')
+export function OrderDialog(props: OrderDialogProps) {
+  const { onClose, order } = props
+  const isEditing = order !== undefined
+  const [items, setItems] = useState<DraftItem[]>(() => (
+    order ? order.items.map(itemDraft) : [emptyItem()]
+  ))
+  const [client, setClient] = useState<DraftContact>(() => contactDraft(order?.client))
+  const [additionalContacts, setAdditionalContacts] = useState<DraftContact[]>(() => (
+    order?.additionalContacts.map(contactDraft) ?? []
+  ))
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(order?.paymentStatus ?? 'UNPAID')
+  const [prepaymentAmount, setPrepaymentAmount] = useState(
+    order?.paymentStatus === 'PREPAID' ? String(order.prepaymentAmount ?? '') : '',
+  )
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>(order?.executionStatus ?? 'NEW')
+  const [fulfillmentMethod, setFulfillmentMethod] = useState<FulfillmentMethod | ''>(
+    order?.fulfillmentMethod ?? '',
+  )
+  const [deliveryAddress, setDeliveryAddress] = useState(order?.deliveryAddress ?? '')
+  const [comment, setComment] = useState(order?.comment ?? '')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -179,7 +224,14 @@ export function OrderDialog({ onClose, onCreated }: OrderDialogProps) {
 
     setSubmitting(true)
     try {
-      onCreated(await createOrder(payload))
+      if (props.order) {
+        props.onUpdated(await updateOrder(props.order.id, {
+          ...payload,
+          version: props.order.version,
+        }))
+      } else {
+        props.onCreated(await createOrder(payload))
+      }
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Не удалось сохранить заказ')
     } finally {
@@ -198,9 +250,13 @@ export function OrderDialog({ onClose, onCreated }: OrderDialogProps) {
       >
         <header className="dialog-header">
           <div>
-            <p className="eyebrow">Заказ с сопровождением</p>
-            <h2 id="order-dialog-title">Новый заказ</h2>
-            <p>Контакты и способ получения можно оставить пустыми.</p>
+            <p className="eyebrow">{order ? `Заказ З-${order.id}` : 'Заказ с сопровождением'}</p>
+            <h2 id="order-dialog-title">{isEditing ? 'Редактирование заказа' : 'Новый заказ'}</h2>
+            <p>
+              {isEditing
+                ? 'Изменения сохранятся во всех данных заказа.'
+                : 'Контакты и способ получения можно оставить пустыми.'}
+            </p>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть">
             ×
@@ -482,7 +538,7 @@ export function OrderDialog({ onClose, onCreated }: OrderDialogProps) {
               Отмена
             </button>
             <button className="button button-primary" disabled={submitting}>
-              {submitting ? 'Сохраняем…' : 'Создать заказ'}
+              {submitting ? 'Сохраняем…' : isEditing ? 'Сохранить изменения' : 'Создать заказ'}
             </button>
           </footer>
         </form>

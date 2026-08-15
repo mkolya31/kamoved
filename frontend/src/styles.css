@@ -633,7 +633,8 @@ input::placeholder {
 .entry-details {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.35fr);
-  gap: 40px;
+  column-gap: 40px;
+  row-gap: 22px;
   padding: 22px 132px 26px 126px;
   border-top: 1px dashed #d8d0c7;
   background: #f9f6f1;
@@ -682,6 +683,14 @@ input::placeholder {
 .order-details-meta {
   display: grid;
   gap: 22px;
+}
+
+.order-details-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #ded6cc;
 }
 
 .order-details-meta section,
