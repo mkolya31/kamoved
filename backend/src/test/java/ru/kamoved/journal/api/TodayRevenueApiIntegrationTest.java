@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -19,6 +18,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,8 +47,7 @@ class TodayRevenueApiIntegrationTest {
     private JdbcTemplate jdbc;
 
     @Test
-    @WithMockUser(username = "admin")
-    void returnsPaidCompletedSalesForCurrentSellerAndMoscowDay() throws Exception {
+    void returnsSameTeamRevenueToDifferentSellersForMoscowDay() throws Exception {
         long adminId = userId("admin");
         long anotherSellerId = createUser("another-seller");
 
@@ -62,11 +61,15 @@ class TodayRevenueApiIntegrationTest {
         createEntry(adminId, "ORDER", "PAID", "COMPLETED", "50.00", "2026-08-13T12:00:00Z");
         createEntry(anotherSellerId, "SALE", "PAID", "COMPLETED", "60.00", "2026-08-13T13:00:00Z");
 
-        mockMvc.perform(get("/api/journal?page=0&size=1"))
+        mockMvc.perform(get("/api/journal?page=0&size=1").with(user("admin")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.items.length()").value(1))
             .andExpect(jsonPath("$.hasNext").value(true))
-            .andExpect(jsonPath("$.todayRevenue").value(350.5));
+            .andExpect(jsonPath("$.todayRevenue").value(410.5));
+
+        mockMvc.perform(get("/api/journal?page=0&size=1").with(user("another-seller")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.todayRevenue").value(410.5));
     }
 
     private long userId(String username) {
