@@ -15,6 +15,11 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  session:
+    timeout: 7d
+    jdbc:
+      cleanup-cron: "0 * * * * *"
+      initialize-schema: never
 
 server:
   forward-headers-strategy: framework
@@ -22,6 +27,7 @@ server:
     session:
       timeout: 7d
       cookie:
+        name: JSESSIONID
         max-age: 7d
         http-only: true
         secure: ${SESSION_COOKIE_SECURE:false}
