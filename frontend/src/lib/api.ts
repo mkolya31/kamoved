@@ -84,8 +84,12 @@ export function logout(): Promise<void> {
   return mutate<void>('/api/auth/logout', { method: 'POST' })
 }
 
-export async function loadJournal(mode: 'all' | 'active'): Promise<JournalPage> {
-  const response = await fetch(`/api/journal?mode=${mode}&page=0&size=30`, {
+export async function loadJournal(
+  mode: 'all' | 'active',
+  page = 0,
+  size = 30,
+): Promise<JournalPage> {
+  const response = await fetch(`/api/journal?mode=${mode}&page=${page}&size=${size}`, {
     credentials: 'include',
   })
   if (!response.ok) throw await parseError(response)

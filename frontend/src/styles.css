@@ -364,6 +364,47 @@ input::placeholder {
   gap: 30px;
 }
 
+.journal-pagination {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+.journal-load-more {
+  min-width: 240px;
+}
+
+.journal-pagination-error {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #8b2c25;
+}
+
+.journal-pagination-error span {
+  font-size: 13px;
+}
+
+.journal-end {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .date-divider {
   display: flex;
   align-items: center;

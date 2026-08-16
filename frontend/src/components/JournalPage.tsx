@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   ApiError,
   loadJournal,
@@ -8,13 +8,20 @@ import {
 } from '../lib/api'
 import {
   executionLabels,
-  formatDate,
   formatMoney,
   formatQuantity,
   formatTime,
   fulfillmentLabels,
   paymentLabels,
 } from '../lib/format'
+import {
+  appendUniqueEntries,
+  groupJournalEntries,
+  initialJournalPaginationState,
+  isLatestJournalRequest,
+  journalPaginationReducer,
+  type JournalMode,
+} from '../lib/journalPagination'
 import { summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
@@ -30,7 +37,12 @@ const executionStatuses = Object.keys(executionLabels) as ExecutionStatus[]
 const terminalExecutionStatuses: ExecutionStatus[] = ['COMPLETED', 'CANCELLED']
 
 export function JournalPage({ user, onLogout }: JournalPageProps) {
-  const [mode, setMode] = useState<'all' | 'active'>('all')
+  const [pagination, dispatchPagination] = useReducer(
+    journalPaginationReducer,
+    undefined,
+    () => initialJournalPaginationState(),
+  )
+  const {mode, page, hasNext, loadingMore, loadMoreError, announcement} = pagination
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,22 +54,38 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
   const [paymentEntry, setPaymentEntry] = useState<JournalEntry | null>(null)
   const [editingOrder, setEditingOrder] = useState<JournalEntryDetails | null>(null)
+  const requestGenerationRef = useRef(0)
+  const loadingMoreRef = useRef(false)
 
   const refresh = useCallback(async () => {
+    const requestGeneration = ++requestGenerationRef.current
+    loadingMoreRef.current = false
+    dispatchPagination({type: 'reset', mode})
+    setEntries([])
     setLoading(true)
     setError('')
     try {
       const journal = await loadJournal(mode)
-      setEntries(journal.items)
+      if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
+      setEntries(appendUniqueEntries([], journal.items))
       setTodayRevenue(journal.todayRevenue)
+      dispatchPagination({
+        type: 'first-page-loaded',
+        mode,
+        page: journal.page,
+        hasNext: journal.hasNext,
+      })
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) {
         onLogout()
         return
       }
+      if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
       setError(cause instanceof ApiError ? cause.message : 'Не удалось загрузить журнал')
     } finally {
-      setLoading(false)
+      if (isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) {
+        setLoading(false)
+      }
     }
   }, [mode, onLogout])
 
@@ -65,14 +93,55 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     void refresh()
   }, [refresh])
 
-  const groups = useMemo(() => {
-    const grouped = new Map<string, JournalEntry[]>()
-    entries.forEach((entry) => {
-      const key = formatDate(entry.createdAt)
-      grouped.set(key, [...(grouped.get(key) ?? []), entry])
-    })
-    return [...grouped.entries()]
-  }, [entries])
+  const groups = useMemo(() => groupJournalEntries(entries), [entries])
+
+  function changeMode(nextMode: JournalMode) {
+    if (nextMode === mode) return
+
+    requestGenerationRef.current += 1
+    loadingMoreRef.current = false
+    dispatchPagination({type: 'reset', mode: nextMode})
+    setEntries([])
+    setExpanded(new Set())
+    setDetails(new Map())
+    setError('')
+    setLoading(true)
+  }
+
+  async function handleLoadMore() {
+    if (loading || loadingMoreRef.current || !hasNext) return
+
+    const requestedMode = mode
+    const requestGeneration = requestGenerationRef.current
+    const nextPage = page + 1
+    loadingMoreRef.current = true
+    dispatchPagination({type: 'load-more-started', mode: requestedMode})
+
+    try {
+      const journal = await loadJournal(requestedMode, nextPage)
+      if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
+
+      setEntries((current) => appendUniqueEntries(current, journal.items))
+      setTodayRevenue(journal.todayRevenue)
+      dispatchPagination({
+        type: 'load-more-loaded',
+        mode: requestedMode,
+        page: journal.page,
+        hasNext: journal.hasNext,
+      })
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onLogout()
+        return
+      }
+      if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
+      dispatchPagination({type: 'load-more-failed', mode: requestedMode})
+    } finally {
+      if (isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) {
+        loadingMoreRef.current = false
+      }
+    }
+  }
 
   async function handleLogout() {
     try {
@@ -231,13 +300,13 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             <div className="mode-switch" aria-label="Режим журнала">
               <button
                 className={mode === 'all' ? 'active' : ''}
-                onClick={() => setMode('all')}
+                onClick={() => changeMode('all')}
               >
                 Все записи
               </button>
               <button
                 className={mode === 'active' ? 'active' : ''}
-                onClick={() => setMode('active')}
+                onClick={() => changeMode('active')}
               >
                 Активные заказы
               </button>
@@ -274,7 +343,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             )}
           </section>
         ) : (
-          <div className="journal-groups">
+          <div className="journal-groups" id="journal-entry-groups">
             {groups.map(([date, dateEntries]) => (
               <section className="journal-group" key={date}>
                 <header className="date-divider">
@@ -475,6 +544,35 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                 </div>
               </section>
             ))}
+            <div className="journal-pagination">
+              {loadMoreError ? (
+                <div className="journal-pagination-error" role="alert">
+                  <span>Не удалось загрузить более ранние записи</span>
+                  <button
+                    className="button button-quiet"
+                    type="button"
+                    onClick={() => void handleLoadMore()}
+                  >
+                    Повторить
+                  </button>
+                </div>
+              ) : hasNext ? (
+                <button
+                  className="button button-quiet journal-load-more"
+                  type="button"
+                  disabled={loadingMore}
+                  aria-controls="journal-entry-groups"
+                  onClick={() => void handleLoadMore()}
+                >
+                  {loadingMore ? 'Загружаем…' : 'Показать более ранние записи'}
+                </button>
+              ) : (
+                <p className="journal-end">Более ранних записей нет</p>
+              )}
+              <p className="visually-hidden" aria-live="polite" aria-atomic="true">
+                {announcement}
+              </p>
+            </div>
           </div>
         )}
       </main>
@@ -484,7 +582,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           onClose={() => setSaleOpen(false)}
           onCreated={(sale) => {
             setSaleOpen(false)
-            setMode('all')
+            changeMode('all')
             setEntries((current) => [sale, ...current.filter(({ id }) => id !== sale.id)])
             setTodayRevenue((current) => (current ?? 0) + sale.totalAmount)
             setExpanded(new Set())
@@ -497,7 +595,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           onClose={() => setOrderOpen(false)}
           onCreated={(order) => {
             setOrderOpen(false)
-            setMode('all')
+            changeMode('all')
             setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
             setExpanded(new Set())
           }}
