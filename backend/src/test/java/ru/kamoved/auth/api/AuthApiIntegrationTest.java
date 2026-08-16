@@ -1,7 +1,7 @@
 package ru.kamoved.auth.api;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,15 +9,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
 import ru.kamoved.auth.application.AuthSessionService;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -34,10 +35,22 @@ class AuthApiIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JdbcIndexedSessionRepository sessions;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Value("${spring.session.timeout}")
+    private Duration springSessionTimeout;
+
+    @Value("${spring.session.jdbc.initialize-schema}")
+    private String sessionSchemaInitialization;
+
+    @Value("${spring.session.jdbc.cleanup-cron}")
+    private String sessionCleanupCron;
 
     @Value("${server.servlet.session.timeout}")
-    private Duration sessionTimeout;
+    private Duration servletSessionTimeout;
 
     @Value("${server.servlet.session.cookie.max-age}")
     private Duration sessionCookieMaxAge;
@@ -51,17 +64,25 @@ class AuthApiIntegrationTest {
     @Value("${server.servlet.session.cookie.same-site}")
     private String sessionCookieSameSite;
 
+    @BeforeEach
+    void deletePersistedSessions() {
+        jdbc.update("DELETE FROM spring_session");
+    }
+
     @Test
-    void createsSessionAndReturnsCurrentUser() throws Exception {
+    void createsPersistedSessionAndReturnsCurrentUser() throws Exception {
         Instant loginStartedAt = Instant.now();
         LoginSession loginSession = loginAsAdmin();
         Instant loginFinishedAt = Instant.now();
-        MockHttpSession session = loginSession.session();
 
-        assertThat(session.getId()).isNotEqualTo(loginSession.csrfSessionId());
-        assertThat(session.getMaxInactiveInterval())
-            .isEqualTo(Math.toIntExact(AuthSessionService.MAX_SESSION_LIFETIME.toSeconds()));
-        assertThat(session.getAttribute(AuthSessionService.EXPIRES_AT_ATTRIBUTE))
+        Session persistedSession = sessions.findById(loginSession.repositoryId());
+        assertThat(persistedSession).isNotNull();
+        assertThat(persistedSession.getMaxInactiveInterval())
+            .isEqualTo(AuthSessionService.MAX_SESSION_LIFETIME);
+        Object expiresAtAttribute = persistedSession.getAttribute(
+            AuthSessionService.EXPIRES_AT_ATTRIBUTE
+        );
+        assertThat(expiresAtAttribute)
             .isInstanceOfSatisfying(Instant.class, expiresAt -> {
                 assertThat(expiresAt)
                     .isAfterOrEqualTo(loginStartedAt.plus(AuthSessionService.MAX_SESSION_LIFETIME));
@@ -69,81 +90,89 @@ class AuthApiIntegrationTest {
                     .isBeforeOrEqualTo(loginFinishedAt.plus(AuthSessionService.MAX_SESSION_LIFETIME));
             });
 
-        mockMvc.perform(get("/api/auth/me").session(session))
+        mockMvc.perform(get("/api/auth/me").cookie(loginSession.cookie()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.username").value("admin"));
     }
 
     @Test
     void expiresAuthenticatedSessionAfterAbsoluteDeadline() throws Exception {
-        MockHttpSession session = loginAsAdmin().session();
-        session.setAttribute(AuthSessionService.EXPIRES_AT_ATTRIBUTE, Instant.now().minusSeconds(1));
+        LoginSession loginSession = loginAsAdmin();
+        Session persistedSession = sessions.findById(loginSession.repositoryId());
+        persistedSession.setAttribute(
+            AuthSessionService.EXPIRES_AT_ATTRIBUTE,
+            Instant.now().minusSeconds(1)
+        );
+        save(persistedSession);
 
-        MvcResult expired = mockMvc.perform(get("/api/auth/me").session(session))
+        MvcResult expired = mockMvc.perform(get("/api/auth/me").cookie(loginSession.cookie()))
             .andExpect(status().isUnauthorized())
             .andReturn();
 
-        assertThat(session.isInvalid()).isTrue();
+        assertThat(sessions.findById(loginSession.repositoryId())).isNull();
         assertClearedProtectedSessionCookie(expired);
     }
 
     @Test
-    void logoutImmediatelyInvalidatesSessionAndClearsCookie() throws Exception {
-        MockHttpSession session = loginAsAdmin().session();
+    void rejectsIdleExpiredSessionAndRemovesItDuringCleanup() throws Exception {
+        LoginSession loginSession = loginAsAdmin();
+        long expiredAt = Instant.now().minus(AuthSessionService.MAX_SESSION_LIFETIME)
+            .minusSeconds(1)
+            .toEpochMilli();
+        jdbc.update(
+            """
+                UPDATE spring_session
+                SET last_access_time = ?, expiry_time = ?
+                WHERE session_id = ?
+                """,
+            expiredAt,
+            expiredAt,
+            loginSession.repositoryId()
+        );
+
+        mockMvc.perform(get("/api/auth/me").cookie(loginSession.cookie()))
+            .andExpect(status().isUnauthorized());
+
+        assertThat(sessions.findById(loginSession.repositoryId())).isNull();
+        sessions.cleanUpExpiredSessions();
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM spring_session WHERE session_id = ?",
+            Long.class,
+            loginSession.repositoryId()
+        )).isZero();
+    }
+
+    @Test
+    void logoutImmediatelyDeletesPersistedSessionAndClearsCookie() throws Exception {
+        LoginSession loginSession = loginAsAdmin();
 
         MvcResult logout = mockMvc.perform(post("/api/auth/logout")
-                .session(session)
+                .cookie(loginSession.cookie())
                 .with(csrf()))
             .andExpect(status().isNoContent())
             .andReturn();
 
-        assertThat(session.isInvalid()).isTrue();
+        assertThat(sessions.findById(loginSession.repositoryId())).isNull();
         assertClearedProtectedSessionCookie(logout);
     }
 
     @Test
-    void configuresPersistentProtectedSessionCookieForSevenDays() {
-        assertThat(sessionTimeout).isEqualTo(Duration.ofDays(7));
+    void treatsLegacyTomcatCookieAsUnknownSessionInsteadOfInvalidDatabaseText() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new Cookie("JSESSIONID", "AAAA")))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void configuresJdbcSessionsAndProtectedCookieForSevenDays() {
+        assertThat(springSessionTimeout).isEqualTo(Duration.ofDays(7));
+        assertThat(servletSessionTimeout).isEqualTo(Duration.ofDays(7));
         assertThat(sessionCookieMaxAge).isEqualTo(Duration.ofDays(7));
+        assertThat(sessionSchemaInitialization).isEqualToIgnoringCase("never");
+        assertThat(sessionCleanupCron).isEqualTo("0 * * * * *");
         assertThat(sessionCookieHttpOnly).isTrue();
         assertThat(sessionCookieSecure).isTrue();
         assertThat(sessionCookieSameSite).isEqualToIgnoringCase("lax");
-    }
-
-    private LoginSession loginAsAdmin() throws Exception {
-        MockHttpSession csrfSession = new MockHttpSession();
-        MvcResult csrf = mockMvc.perform(get("/api/auth/csrf").session(csrfSession))
-            .andExpect(status().isOk())
-            .andReturn();
-        Map<String, String> csrfBody = objectMapper.readValue(
-            csrf.getResponse().getContentAsByteArray(),
-            new TypeReference<>() {
-            }
-        );
-        String csrfSessionId = csrfSession.getId();
-
-        var loginRequest = post("/api/auth/login")
-                .session(csrfSession)
-                .header(csrfBody.get("headerName"), csrfBody.get("token"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "username": "admin",
-                      "password": "test-password"
-                    }
-                    """);
-        if (csrf.getResponse().getCookie("XSRF-TOKEN") != null) {
-            loginRequest.cookie(csrf.getResponse().getCookie("XSRF-TOKEN"));
-        }
-
-        MvcResult login = mockMvc.perform(loginRequest)
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.username").value("admin"))
-            .andExpect(jsonPath("$.displayName").value("Тестовый пользователь"))
-            .andReturn();
-
-        MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
-        return new LoginSession(session, csrfSessionId);
     }
 
     @Test
@@ -176,6 +205,55 @@ class AuthApiIntegrationTest {
             .andExpect(jsonPath("$.displayName").value("Максим"));
     }
 
+    private LoginSession loginAsAdmin() throws Exception {
+        MvcResult login = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "admin",
+                      "password": "test-password"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.username").value("admin"))
+            .andExpect(jsonPath("$.displayName").value("Тестовый пользователь"))
+            .andReturn();
+
+        String repositoryId = jdbc.queryForObject(
+            """
+                SELECT session_id
+                FROM spring_session
+                WHERE principal_name = 'admin'
+                ORDER BY creation_time DESC
+                LIMIT 1
+                """,
+            String.class
+        );
+
+        return new LoginSession(sessionCookieFrom(login), repositoryId);
+    }
+
+    private Cookie sessionCookieFrom(MvcResult result) {
+        String header = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+            .filter(cookie -> cookie.startsWith("JSESSIONID="))
+            .filter(cookie -> !cookie.contains("Max-Age=0"))
+            .findFirst()
+            .orElseThrow();
+        int valueStart = "JSESSIONID=".length();
+        int valueEnd = header.indexOf(';', valueStart);
+        String value = valueEnd < 0 ? header.substring(valueStart) : header.substring(valueStart, valueEnd);
+        assertThat(value).matches(
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        );
+        return new Cookie("JSESSIONID", value);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void save(Session session) {
+        ((SessionRepository) sessions).save(session);
+    }
+
     private void assertClearedProtectedSessionCookie(MvcResult result) {
         assertThat(result.getResponse().getHeaders(HttpHeaders.SET_COOKIE))
             .anySatisfy(cookie -> assertThat(cookie)
@@ -187,6 +265,6 @@ class AuthApiIntegrationTest {
                 .contains("SameSite=Lax"));
     }
 
-    private record LoginSession(MockHttpSession session, String csrfSessionId) {
+    private record LoginSession(Cookie cookie, String repositoryId) {
     }
 }

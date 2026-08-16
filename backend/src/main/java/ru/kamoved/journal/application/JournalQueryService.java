@@ -52,7 +52,7 @@ public class JournalQueryService {
     }
 
     @Transactional(readOnly = true)
-    public JournalPageResponse list(String mode, int page, int size, String username) {
+    public JournalPageResponse list(String mode, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
         Page<JournalEntry> result = "active".equals(mode)
             ? entries.findByTypeAndExecutionStatusInOrderByCreatedAtDesc(
@@ -64,17 +64,16 @@ public class JournalQueryService {
             result.getNumber(),
             result.getSize(),
             result.hasNext(),
-            todayRevenue(username)
+            todayRevenue()
         );
     }
 
-    private BigDecimal todayRevenue(String username) {
+    private BigDecimal todayRevenue() {
         LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
         OffsetDateTime from = today.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
         OffsetDateTime until = today.plusDays(1).atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
 
-        return entries.sumRevenueBySellerAndCreatedAt(
-            username,
+        return entries.sumRevenueByCreatedAt(
             EntryType.SALE,
             PaymentStatus.PAID,
             ExecutionStatus.COMPLETED,

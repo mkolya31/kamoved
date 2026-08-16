@@ -27,15 +27,13 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
     @Query("""
         select coalesce(sum(entry.totalAmount), 0)
         from JournalEntry entry
-        where lower(entry.createdBy.username) = lower(:username)
-          and entry.type = :type
+        where entry.type = :type
           and entry.paymentStatus = :paymentStatus
           and entry.executionStatus = :executionStatus
           and entry.createdAt >= :from
           and entry.createdAt < :until
         """)
-    BigDecimal sumRevenueBySellerAndCreatedAt(
-        @Param("username") String username,
+    BigDecimal sumRevenueByCreatedAt(
         @Param("type") EntryType type,
         @Param("paymentStatus") PaymentStatus paymentStatus,
         @Param("executionStatus") ExecutionStatus executionStatus,
