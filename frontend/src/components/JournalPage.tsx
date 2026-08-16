@@ -534,6 +534,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 {entryDetails.comment && (
                                   <p className="order-comment">{entryDetails.comment}</p>
                                 )}
+                                <small>Создал: {entryDetails.createdByDisplayName}</small>
                               </div>
                             )}
                           </div>
