@@ -1425,3 +1425,40 @@ input::placeholder {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* KAM-22: экран подтверждения закрытия формы заказа */
+.sale-dialog:focus,
+.confirm-close-dialog:focus {
+  outline: none;
+}
+
+.confirm-close-dialog {
+  width: min(100%, 480px);
+  padding: 28px 32px 26px;
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.confirm-close-dialog h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+}
+
+.confirm-close-text {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.confirm-close-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.confirm-close-actions .button {
+  width: 100%;
+}
