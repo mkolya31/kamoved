@@ -1,4 +1,12 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
 import { ApiError, createOrder, updateOrder } from '../lib/api'
 import {
   executionLabels,
@@ -7,6 +15,7 @@ import {
   paymentLabels,
   unitLabels,
 } from '../lib/format'
+import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
 import type {
   ContactInput,
   ExecutionStatus,
@@ -150,11 +159,102 @@ export function OrderDialog(props: OrderDialogProps) {
   const [comment, setComment] = useState(order?.comment ?? '')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [confirmingClose, setConfirmingClose] = useState(false)
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const continueButtonRef = useRef<HTMLButtonElement>(null)
+  const discardButtonRef = useRef<HTMLButtonElement>(null)
+  const initialSnapshotRef = useRef<string | null>(null)
+  const savedScrollTopRef = useRef(0)
+  const resumedFromConfirmRef = useRef(false)
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + lineTotal(item), 0),
     [items],
   )
+
+  const formState: OrderFormState = {
+    items: items.map(({ name, quantity, unit, unitPrice }) => ({
+      name,
+      quantity,
+      unit,
+      unitPrice,
+    })),
+    client: { name: client.name, phone: client.phone, comment: client.comment },
+    additionalContacts: additionalContacts.map(({ name, phone, comment }) => ({
+      name,
+      phone,
+      comment,
+    })),
+    paymentStatus,
+    prepaymentAmount,
+    executionStatus,
+    fulfillmentMethod,
+    deliveryAddress,
+    comment,
+  }
+  const snapshot = serializeOrderFormState(formState)
+  if (initialSnapshotRef.current === null) {
+    initialSnapshotRef.current = snapshot
+  }
+  const isDirty = snapshot !== initialSnapshotRef.current
+
+  useEffect(() => {
+    if (!isDirty) return
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
+  useLayoutEffect(() => {
+    if (confirmingClose) {
+      // Откладываем фокусировку до следующего кадра: браузер применяет
+      // дефолтное действие mousedown (перенос фокуса) после обработчика,
+      // и синхронный focus() был бы перезаписан.
+      const frame = requestAnimationFrame(() => continueButtonRef.current?.focus())
+      return () => cancelAnimationFrame(frame)
+    }
+    if (resumedFromConfirmRef.current) {
+      resumedFromConfirmRef.current = false
+      const node = dialogRef.current
+      if (node) {
+        node.scrollTop = savedScrollTopRef.current
+        node.focus({ preventScroll: true })
+      }
+    }
+  }, [confirmingClose])
+
+  function requestClose() {
+    if (submitting || confirmingClose) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    savedScrollTopRef.current = dialogRef.current?.scrollTop ?? 0
+    resumedFromConfirmRef.current = true
+    setConfirmingClose(true)
+  }
+
+  function resumeEditing() {
+    setConfirmingClose(false)
+  }
+
+  function handleConfirmKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      resumeEditing()
+      return
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const next = document.activeElement === continueButtonRef.current
+        ? discardButtonRef.current
+        : continueButtonRef.current
+      next?.focus()
+    }
+  }
 
   function updateItem(key: number, patch: Partial<DraftItem>) {
     setItems((current) => current.map((item) => (
@@ -239,13 +339,55 @@ export function OrderDialog(props: OrderDialogProps) {
     }
   }
 
+  if (confirmingClose) {
+    return (
+      <div className="dialog-backdrop" role="presentation">
+        <section
+          className="confirm-close-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-close-title"
+          aria-describedby="confirm-close-text"
+          tabIndex={-1}
+          onKeyDown={handleConfirmKeyDown}
+        >
+          <p className="eyebrow">Несохранённый заказ</p>
+          <h2 id="confirm-close-title">Заказ не сохранён</h2>
+          <p className="confirm-close-text" id="confirm-close-text">
+            Если закрыть окно сейчас, все введённые данные будут потеряны.
+          </p>
+          <div className="confirm-close-actions">
+            <button
+              ref={continueButtonRef}
+              className="button button-primary"
+              type="button"
+              onClick={resumeEditing}
+            >
+              Продолжить редактирование
+            </button>
+            <button
+              ref={discardButtonRef}
+              className="button button-quiet"
+              type="button"
+              onClick={onClose}
+            >
+              Закрыть без сохранения
+            </button>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="dialog-backdrop" role="presentation" onMouseDown={requestClose}>
       <section
+        ref={dialogRef}
         className="sale-dialog order-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-dialog-title"
+        tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="dialog-header">
@@ -258,7 +400,7 @@ export function OrderDialog(props: OrderDialogProps) {
                 : 'Контакты и способ получения можно оставить пустыми.'}
             </p>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть">
+          <button className="icon-button" type="button" onClick={requestClose} aria-label="Закрыть">
             ×
           </button>
         </header>
@@ -281,7 +423,7 @@ export function OrderDialog(props: OrderDialogProps) {
                       placeholder="Например, Готика Голд Кристалл 60 мм"
                       maxLength={500}
                       required
-                      autoFocus={index === 0}
+                      autoFocus={index === 0 && !resumedFromConfirmRef.current}
                     />
                   </label>
                   <label>
@@ -534,7 +676,7 @@ export function OrderDialog(props: OrderDialogProps) {
               <span>Итого</span>
               <strong>{formatMoney(total)}</strong>
             </div>
-            <button className="button button-quiet" type="button" onClick={onClose}>
+            <button className="button button-quiet" type="button" onClick={requestClose}>
               Отмена
             </button>
             <button className="button button-primary" disabled={submitting}>
