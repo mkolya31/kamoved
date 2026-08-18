@@ -71,20 +71,50 @@ Use the build and test tooling already configured in `backend/`.
 
 Inspect the existing Maven or Gradle configuration before choosing commands. Do not introduce or replace backend build tooling merely to validate a task.
 
-## Validation
+# Validation
 
 Before considering an implementation complete:
 
 1. Build the affected application.
 2. Run tests relevant to the change.
-3. For user-interface behavior that requires browser validation, use Playwright.
-4. If you believe any additional validation beyond the checks above is necessary, ask the user for permission before running it.
+3. Validate user-visible behavior when the change affects the user interface.
+4. If you believe any additional validation is necessary, ask the user for permission before running it.
 
-Playwright is the standard tool for browser-level validation in this project.
+Use the smallest reasonable validation scope that provides confidence in the current change.
 
-Prefer the smallest relevant set of tests instead of running unrelated test suites.
+## Available browser validation
 
-If Playwright or another expected validation tool is not yet configured correctly, report that limitation instead of spending significant time on ad-hoc installation attempts or complicated workarounds.
+The project may be validated interactively using the browser capabilities available in Codex.
+
+Playwright is also configured in `frontend/` and may be used when an automated browser test is useful, especially when the scenario should be reproducible or protected against future regressions.
+
+Choose the validation method appropriate for the task. Do not use Playwright merely because the change affects the UI.
+
+## Validation failures
+
+A failed automated check does not by itself prove that the application contains a defect. The failure may be caused by the implementation, the test itself, timing, the local environment, sandbox restrictions, or infrastructure.
+
+When a validation check fails:
+
+1. Inspect the immediate failure information.
+2. If the failure is clearly caused by the current implementation, fix it and rerun the relevant check.
+3. If the cause is uncertain, or the failure appears unrelated to the current change, report the finding to the user before starting a broader investigation.
+4. Do not automatically fix unrelated defects discovered during validation.
+
+## Stalled validation
+
+Do not wait indefinitely for a validation command that stops making progress.
+
+If validation runs unusually long without useful output or progress:
+
+1. Report what has already been successfully validated.
+2. Explain where validation is stalled and the likely cause, if known.
+3. Suggest the smallest reasonable next step.
+4. Ask the user whether to continue the automated investigation.
+
+When useful, offer manual validation as an alternative.
+
+Do not repeatedly retry stalled browser tests, switch to debug modes, restart processes, elevate permissions, or try alternative workarounds without user approval.
 
 ## Git branches
 
