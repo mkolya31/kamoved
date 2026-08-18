@@ -16,6 +16,7 @@ import {
   unitLabels,
 } from '../lib/format'
 import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
+import { formatPhone } from '../lib/phone'
 import type {
   ContactInput,
   ExecutionStatus,
@@ -502,10 +503,10 @@ export function OrderDialog(props: OrderDialogProps) {
                 Телефон
                 <input
                   value={client.phone}
-                  onChange={(event) => setClient({ ...client, phone: event.target.value })}
+                  onChange={(event) => setClient({ ...client, phone: formatPhone(event.target.value) })}
                   maxLength={100}
                   inputMode="tel"
-                  placeholder="+7 999 123-45-67"
+                  placeholder="+7 (999) 123-45-67"
                 />
               </label>
               <label className="contact-comment">
@@ -536,9 +537,10 @@ export function OrderDialog(props: OrderDialogProps) {
                     Телефон
                     <input
                       value={contact.phone}
-                      onChange={(event) => updateAdditionalContact(contact.key, { phone: event.target.value })}
+                      onChange={(event) => updateAdditionalContact(contact.key, { phone: formatPhone(event.target.value) })}
                       maxLength={100}
                       inputMode="tel"
+                      placeholder="+7 (999) 123-45-67"
                     />
                   </label>
                   <label className="contact-comment">
