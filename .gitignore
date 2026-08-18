@@ -14,6 +14,10 @@ backend/.mvn-cache/
 frontend/node_modules/
 frontend/dist/
 frontend/.pnpm-store/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
 
 *.log
 .DS_Store
