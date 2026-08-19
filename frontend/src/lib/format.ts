@@ -69,9 +69,15 @@ export function formatDate(value: string): string {
   if (key === today.toDateString()) return 'Сегодня'
   if (key === yesterday.toDateString()) return 'Вчера'
 
-  return new Intl.DateTimeFormat('ru-RU', {
+  const formattedDate = new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',
     month: 'long',
     year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
   }).format(date)
+
+  const weekday = new Intl.DateTimeFormat('ru-RU', {
+    weekday: 'long',
+  }).format(date)
+
+  return `${formattedDate} · ${weekday}`
 }
