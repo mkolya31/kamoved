@@ -120,7 +120,9 @@ Do not commit, push, merge, rebase shared history, or create pull requests unles
 
 ## Commits
 
-Create commits only when explicitly requested. Use Conventional Commits with a Russian description and append the Linear issue identifier: `<type>: <описание изменения> (<LINEAR-ISSUE>)`.
+Create commits only when explicitly requested. Use Conventional Commits with a Russian description and append the Linear issue identifier: `<type>: <описание изменения> <LINEAR-ISSUE>`.
+
+Examples: `feat: добавлен автор продажи KAM-36`, `fix: скрыта информация о приложении со страницы входа KAM-31` 
 
 ## Linear
 
