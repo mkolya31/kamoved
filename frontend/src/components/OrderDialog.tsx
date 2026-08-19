@@ -487,7 +487,7 @@ export function OrderDialog(props: OrderDialogProps) {
           <section className="order-form-section">
             <header>
               <h3>Клиент</h3>
-              <span>Необязательно</span>
+              <span>Обязательно</span>
             </header>
             <div className="contact-fields">
               <label>
@@ -507,6 +507,7 @@ export function OrderDialog(props: OrderDialogProps) {
                   maxLength={100}
                   inputMode="tel"
                   placeholder="+7 (999) 123-45-67"
+                  required
                 />
               </label>
               <label className="contact-comment">
