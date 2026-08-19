@@ -13,6 +13,9 @@ Before making significant changes, read the relevant existing documentation when
 
 * Primary development OS: Windows.
 * Use PowerShell-compatible commands.
+* Use PowerShell syntax and `&` to invoke executables by path; do not assume Bash utilities are available.
+* When the sandbox blocks writes to `.git` or launching Docker or browser processes, request elevation instead of retrying the command or investigating whether the tool is installed.
+* Text files use UTF-8 without BOM and LF line endings; do not check encoding or line endings unless a tool reports an actual error.
 * Do not assume that tools are installed globally.
 * Prefer tools, dependencies, and scripts already declared in the repository.
 * Do not install additional tools or dependencies only to work around a validation problem.
@@ -22,54 +25,41 @@ Before making significant changes, read the relevant existing documentation when
 
 ### Backend and database
 
+For local frontend or browser validation, run the database and backend through Docker Compose and run the frontend separately through Vite.
+
+If `.env` is missing, copy `.env.example` to `.env`.
+
 From the repository root:
 
 ```powershell
-docker compose -f compose.yaml -f compose.dev.yaml up --build database backend
+docker compose -f compose.yaml -f compose.dev.yaml up -d database backend
 ```
+
+Add `--build` only after backend source or Docker configuration changes.
+
+The backend is ready when `http://127.0.0.1:8080/api/auth/csrf` responds successfully.
 
 ### Frontend
 
-The frontend uses `pnpm`.
-
-From `frontend/`:
+From `frontend/`, use:
 
 ```powershell
 pnpm dev
-```
-
-The development server runs through:
-
-```text
-vite --host 127.0.0.1
-```
-
-Available frontend scripts:
-
-```text
-pnpm dev
 pnpm build
-pnpm preview
 pnpm test
+pnpm test:e2e
 ```
 
-`pnpm build` runs:
-
-```text
-tsc -b && vite build
-```
-
-`pnpm test` runs:
-
-```text
-vitest run
-```
+The development server runs at `http://127.0.0.1:5173` and proxies API requests to the backend on port `8080`.
 
 ### Backend build and tests
 
-Use the build and test tooling already configured in `backend/`.
+The backend uses Maven Wrapper. Run commands from `backend/`:
 
-Inspect the existing Maven or Gradle configuration before choosing commands. Do not introduce or replace backend build tooling merely to validate a task.
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd package
+```
 
 # Validation
 
@@ -84,11 +74,15 @@ Use the smallest reasonable validation scope that provides confidence in the cur
 
 ## Available browser validation
 
-The project may be validated interactively using the browser capabilities available in Codex.
+Use the interactive browser for one-off exploratory, behavioral, or visual checks.
 
-Playwright is also configured in `frontend/` and may be used when an automated browser test is useful, especially when the scenario should be reproducible or protected against future regressions.
+Local browser validation requires authentication. Use the test user `test-user` / `password-for-test-user`.
 
-Choose the validation method appropriate for the task. Do not use Playwright merely because the change affects the UI.
+Use `pnpm test:e2e` from `frontend/` when the scenario should be repeatable or protected against regression.
+
+Do not inspect or install Playwright browsers before running the selected test; do so only when Playwright reports that a browser is missing.
+
+Use the smallest suitable validation method. Do not run both interactive browser validation and Playwright unless they cover different risks.
 
 ## Validation failures
 
@@ -114,90 +108,23 @@ If validation runs unusually long without useful output or progress:
 
 When useful, offer manual validation as an alternative.
 
-Do not repeatedly retry stalled browser tests, switch to debug modes, restart processes, elevate permissions, or try alternative workarounds without user approval.
+Do not repeatedly retry stalled browser tests, switch to debug modes, terminate or restart processes, elevate permissions, or try alternative workarounds without user approval.
 
 ## Git branches
 
-Do not create branches with a `codex/` prefix.
+Use `<prefix>/<LINEAR-ISSUE>-<short-description>`, where `<prefix>` is one of: `feat`, `fix`, `hotfix`, `build`, `chore`, `ci`, `cd`, `docs`, `style`, `refactor`, `perf`, `test`. Do not use `codex/`.
 
-Use one of these prefixes according to the type of change:
-
-* `feat/`
-* `fix/`
-* `hotfix/`
-* `build/`
-* `chore/`
-* `ci/`
-* `cd/`
-* `docs/`
-* `style/`
-* `refactor/`
-* `perf/`
-* `test/`
-
-After the prefix, include the Linear issue identifier and a short description of the change.
-
-Format:
-
-```text
-<prefix>/<LINEAR-ISSUE>-<short-description>
-```
-
-Examples:
-
-```text
-feat/KAM-36-sale-author
-fix/KAM-31-remove-app-info-from-login-page
-```
-
-When creating a branch:
-
-1. Start from `develop`.
-2. Make sure local `develop` is up to date.
-3. Create the new branch from the updated `develop`.
-
-The agent may create branches, switch between branches, and update local branches without additional permission.
+Create branches from an up-to-date `develop`. Creating, switching, and updating branches is allowed without additional permission.
 
 Do not commit, push, merge, rebase shared history, or create pull requests unless the user explicitly asks.
 
 ## Commits
 
-Use Conventional Commits.
-
-Commit messages must be written in Russian.
-
-Include the Linear issue identifier at the end of the commit subject.
-
-Format:
-
-```text
-<type>: <описание изменения> (<LINEAR-ISSUE>)
-```
-
-Examples:
-
-```text
-feat: добавлен автор продажи (KAM-36)
-fix: скрыта информация о приложении со страницы входа (KAM-31)
-```
-
-Create a commit only when the user explicitly asks for it.
+Create commits only when explicitly requested. Use Conventional Commits with a Russian description and append the Linear issue identifier: `<type>: <описание изменения> (<LINEAR-ISSUE>)`.
 
 ## Linear
 
-When beginning substantive discussion or implementation of a Linear issue, change that issue's status to:
-
-```text
-In Progress
-```
-
-Do not make any other issue status changes.
-
-Other status transitions are handled automatically from Git history or manually by the user.
-
-Do not modify an issue's title, description, acceptance criteria, comments, priority, labels, assignee, or other fields unless the user explicitly asks.
-
-Reading Linear issues and their existing context is allowed when relevant to the current task.
+When substantive work on a Linear issue begins, set only its status to `In Progress`. Do not make other status transitions or modify its title, description, acceptance criteria, comments, priority, labels, assignee, or other fields unless explicitly requested. Reading issue context is allowed.
 
 ## API and architecture changes
 
