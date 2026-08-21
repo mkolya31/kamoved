@@ -125,7 +125,6 @@ textarea:focus-visible {
 
 .kamoved-logo {
   height: 42px;
-  transform: scaleX(-1);
 }
 
 .boot-screen {
