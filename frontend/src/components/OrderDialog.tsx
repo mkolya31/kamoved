@@ -57,6 +57,10 @@ interface DraftItem {
   unitPrice: string
 }
 
+function isDeliveryMethod(method: FulfillmentMethod | ''): boolean {
+  return method === 'DELIVERY_FACTORY' || method === 'DELIVERY_MARKET'
+}
+
 interface DraftContact {
   key: number
   name: string
@@ -304,7 +308,7 @@ export function OrderDialog(props: OrderDialogProps) {
       }
     }
 
-    if (fulfillmentMethod === 'DELIVERY' && !deliveryAddress.trim()) {
+    if (isDeliveryMethod(fulfillmentMethod) && !deliveryAddress.trim()) {
       setError('Для доставки укажите адрес')
       return
     }
@@ -319,7 +323,7 @@ export function OrderDialog(props: OrderDialogProps) {
       prepaymentAmount: parsedPrepayment,
       executionStatus,
       fulfillmentMethod: fulfillmentMethod || undefined,
-      deliveryAddress: fulfillmentMethod === 'DELIVERY' ? deliveryAddress.trim() : undefined,
+      deliveryAddress: isDeliveryMethod(fulfillmentMethod) ? deliveryAddress.trim() : undefined,
       comment: comment.trim() || undefined,
     }
 
@@ -634,7 +638,7 @@ export function OrderDialog(props: OrderDialogProps) {
                     onChange={(event) => {
                       const next = event.target.value as FulfillmentMethod | ''
                       setFulfillmentMethod(next)
-                      if (next !== 'DELIVERY') setDeliveryAddress('')
+                      if (!isDeliveryMethod(next)) setDeliveryAddress('')
                     }}
                   >
                     <option value="">Не указан</option>
@@ -643,7 +647,7 @@ export function OrderDialog(props: OrderDialogProps) {
                     ))}
                   </select>
                 </label>
-                {fulfillmentMethod === 'DELIVERY' && (
+                {isDeliveryMethod(fulfillmentMethod) && (
                   <div className="order-settings-dependent-fields">
                     <label>
                       Адрес доставки

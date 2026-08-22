@@ -9,7 +9,7 @@ function baseState(): OrderFormState {
     paymentStatus: 'PREPAID',
     prepaymentAmount: '1000',
     executionStatus: 'NEW',
-    fulfillmentMethod: 'DELIVERY',
+    fulfillmentMethod: 'DELIVERY_FACTORY',
     deliveryAddress: 'СНТ Ромашка, участок 12',
     comment: 'Позвонить за день до доставки',
   }

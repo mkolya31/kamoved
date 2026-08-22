@@ -16,7 +16,8 @@ export type PaymentStatus = 'UNPAID' | 'PREPAID' | 'PAID'
 export type FulfillmentMethod =
   | 'PICKUP_WAREHOUSE'
   | 'PICKUP_FACTORY'
-  | 'DELIVERY'
+  | 'DELIVERY_FACTORY'
+  | 'DELIVERY_MARKET'
 
 export type UnitOfMeasure =
   | 'PIECE'

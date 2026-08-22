@@ -41,7 +41,7 @@ describe('summaryFromDetails', () => {
       executionStatus: 'READY_FACTORY',
       client: {id: 41, name: 'Максим', phone: '+7 999 111-22-33', comment: null},
       additionalContacts: [],
-      fulfillmentMethod: 'DELIVERY',
+      fulfillmentMethod: 'DELIVERY_MARKET',
       deliveryAddress: 'Новый адрес',
       comment: 'Новый комментарий',
       createdByDisplayName: 'Камень Клинкер Про',
@@ -59,7 +59,7 @@ describe('summaryFromDetails', () => {
       executionStatus: 'READY_FACTORY',
       clientName: 'Максим',
       clientPhone: '+7 999 111-22-33',
-      fulfillmentMethod: 'DELIVERY',
+      fulfillmentMethod: 'DELIVERY_MARKET',
       deliveryAddress: 'Новый адрес',
       version: 1,
     })
