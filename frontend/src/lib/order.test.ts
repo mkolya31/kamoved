@@ -20,6 +20,7 @@ describe('summaryFromDetails', () => {
       fulfillmentMethod: null,
       deliveryAddress: null,
       version: 0,
+      matches: [],
     }
     const details: JournalEntryDetails = {
       id: 12,

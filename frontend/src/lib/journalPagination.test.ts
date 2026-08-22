@@ -25,6 +25,7 @@ function entry(id: number, createdAt = '2025-01-10T12:00:00+03:00'): JournalEntr
     fulfillmentMethod: null,
     deliveryAddress: null,
     version: 0,
+    matches: [],
   }
 }
 

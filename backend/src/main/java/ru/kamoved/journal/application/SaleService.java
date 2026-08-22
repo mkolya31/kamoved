@@ -55,6 +55,7 @@ public class SaleService {
         sale.setTotalAmount(moneyCalculator.calculateOrderTotal(
             sale.getItems().stream().map(JournalEntryItem::getLineTotal).toList()
         ));
+        sale.refreshSearchText();
 
         return mapper.toSummary(entries.saveAndFlush(sale));
     }

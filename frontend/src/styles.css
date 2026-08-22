@@ -358,6 +358,80 @@ input::placeholder {
   box-shadow: 0 2px 8px rgba(49, 39, 28, 0.09);
 }
 
+.journal-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: -12px 0 26px;
+}
+
+.journal-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  outline: none;
+}
+
+.journal-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(184, 93, 21, 0.13);
+}
+
+.journal-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.journal-search-icon {
+  position: absolute;
+  left: 17px;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.journal-search button {
+  position: absolute;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.journal-search button:hover {
+  color: var(--ink);
+  background: #f1ece6;
+}
+
+.search-loading {
+  padding: 44px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.search-result-count {
+  margin-bottom: -16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.search-result-count strong {
+  color: var(--ink);
+  font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
 .journal-groups {
   display: grid;
   gap: 30px;
@@ -442,6 +516,17 @@ input::placeholder {
 
 .entry-card + .entry-card {
   border-top: 1px solid var(--line);
+}
+
+.search-match {
+  margin: -4px 18px 14px 126px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.search-match strong {
+  color: var(--ink);
 }
 
 .entry-summary {
@@ -1319,6 +1404,14 @@ input::placeholder {
   .mode-switch,
   .mode-switch button {
     width: 100%;
+  }
+
+  .journal-search {
+    margin-top: -10px;
+  }
+
+  .search-match {
+    margin: -2px 14px 14px 86px;
   }
 
   .entry-summary {

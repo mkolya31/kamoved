@@ -17,6 +17,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.BatchSize;
 import ru.kamoved.auth.domain.AppUser;
 
 import java.math.BigDecimal;
@@ -60,6 +61,9 @@ public class JournalEntry {
 
     private String comment;
 
+    @Column(name = "search_text", nullable = false, columnDefinition = "text")
+    private String searchText = "";
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private AppUser createdBy;
@@ -76,10 +80,12 @@ public class JournalEntry {
 
     @OneToMany(mappedBy = "journalEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
+    @BatchSize(size = 30)
     private List<JournalEntryItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "journalEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
+    @BatchSize(size = 30)
     private List<EntryContact> contacts = new ArrayList<>();
 
     protected JournalEntry() {
@@ -166,6 +172,7 @@ public class JournalEntry {
 
     @PrePersist
     void onCreate() {
+        refreshSearchText();
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
@@ -173,7 +180,20 @@ public class JournalEntry {
 
     @PreUpdate
     void onUpdate() {
+        refreshSearchText();
         updatedAt = OffsetDateTime.now();
+    }
+
+    public void refreshSearchText() {
+        List<String> values = new ArrayList<>();
+        values.add(JournalSearchNormalizer.normalizeText(deliveryAddress));
+        contacts.forEach(contact -> {
+            values.add(JournalSearchNormalizer.normalizeText(contact.getName()));
+            String phone = JournalSearchNormalizer.normalizePhone(contact.getPhone());
+            values.add(phone == null ? "" : phone);
+        });
+        items.forEach(item -> values.add(JournalSearchNormalizer.normalizeText(item.getName())));
+        searchText = String.join(" ", values).trim().replaceAll(" +", " ");
     }
 
     public Long getId() {

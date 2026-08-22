@@ -121,6 +121,7 @@ public class OrderService {
             .filter(contact -> contact != null)
             .forEach(contacts::add);
         order.replaceContacts(contacts);
+        order.refreshSearchText();
     }
 
     @Transactional

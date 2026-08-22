@@ -4,6 +4,7 @@ import {
   loadJournal,
   loadJournalEntry,
   logout,
+  searchJournal,
   updateOrderExecutionStatus,
 } from '../lib/api'
 import {
@@ -14,6 +15,7 @@ import {
   fulfillmentLabels,
   paymentLabels,
 } from '../lib/format'
+import { formatDate } from '../lib/format'
 import {
   appendUniqueEntries,
   groupJournalEntries,
@@ -22,6 +24,7 @@ import {
   journalPaginationReducer,
   type JournalMode,
 } from '../lib/journalPagination'
+import { formatSearchMatches, isJournalSearchActive } from '../lib/journalSearch'
 import { summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
@@ -45,6 +48,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const {mode, page, hasNext, loadingMore, loadMoreError, announcement} = pagination
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saleOpen, setSaleOpen] = useState(false)
@@ -56,6 +62,16 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [editingOrder, setEditingOrder] = useState<JournalEntryDetails | null>(null)
   const requestGenerationRef = useRef(0)
   const loadingMoreRef = useRef(false)
+  const searchActive = isJournalSearchActive(searchQuery)
+
+  useEffect(() => {
+    if (!isJournalSearchActive(searchInput)) {
+      setSearchQuery('')
+      return
+    }
+    const timeout = window.setTimeout(() => setSearchQuery(searchInput.trim()), 300)
+    return () => window.clearTimeout(timeout)
+  }, [searchInput])
 
   const refresh = useCallback(async () => {
     const requestGeneration = ++requestGenerationRef.current
@@ -65,10 +81,13 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     setLoading(true)
     setError('')
     try {
-      const journal = await loadJournal(mode)
+      const journal = searchActive
+        ? await searchJournal(searchQuery, mode)
+        : await loadJournal(mode)
       if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
       setEntries(appendUniqueEntries([], journal.items))
       setTodayRevenue(journal.todayRevenue)
+      setTotalItems(journal.totalItems)
       dispatchPagination({
         type: 'first-page-loaded',
         mode,
@@ -87,13 +106,18 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
         setLoading(false)
       }
     }
-  }, [mode, onLogout])
+  }, [mode, onLogout, searchActive, searchQuery])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
-  const groups = useMemo(() => groupJournalEntries(entries), [entries])
+  const groups = useMemo(
+    () => searchActive
+      ? [['search-results', entries] as [string, JournalEntry[]]]
+      : groupJournalEntries(entries),
+    [entries, searchActive],
+  )
 
   function changeMode(nextMode: JournalMode) {
     if (nextMode === mode) return
@@ -118,11 +142,14 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     dispatchPagination({type: 'load-more-started', mode: requestedMode})
 
     try {
-      const journal = await loadJournal(requestedMode, nextPage)
+      const journal = searchActive
+        ? await searchJournal(searchQuery, requestedMode, nextPage)
+        : await loadJournal(requestedMode, nextPage)
       if (!isLatestJournalRequest(requestGeneration, requestGenerationRef.current)) return
 
       setEntries((current) => appendUniqueEntries(current, journal.items))
       setTodayRevenue(journal.todayRevenue)
+      setTotalItems(journal.totalItems)
       dispatchPagination({
         type: 'load-more-loaded',
         mode: requestedMode,
@@ -181,6 +208,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     setError('')
     try {
       const updated = await updateOrderExecutionStatus(entry.id, executionStatus, entry.version)
+      if (searchActive) {
+        await refresh()
+        return
+      }
       setEntries((current) => (
         mode === 'active' && terminalExecutionStatuses.includes(updated.executionStatus)
           ? current.filter(({ id }) => id !== updated.id)
@@ -215,6 +246,11 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   }
 
   function handlePaymentUpdated(updated: JournalEntry) {
+    if (searchActive) {
+      setPaymentEntry(null)
+      void refresh()
+      return
+    }
     setEntries((current) => current.map((entry) => entry.id === updated.id ? updated : entry))
     setDetails((current) => {
       const loaded = current.get(updated.id)
@@ -233,6 +269,11 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   }
 
   function handleOrderUpdated(updated: JournalEntryDetails) {
+    if (searchActive) {
+      setEditingOrder(null)
+      void refresh()
+      return
+    }
     const removeFromActive = mode === 'active'
       && terminalExecutionStatuses.includes(updated.executionStatus)
 
@@ -314,6 +355,48 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           </div>
         </section>
 
+        <form
+          className="journal-search"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (isJournalSearchActive(searchInput)) setSearchQuery(searchInput.trim())
+          }}
+        >
+          <span className="journal-search-icon" aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            value={searchInput}
+            placeholder="Телефон, клиент, адрес, товар или номер записи"
+            aria-label="Поиск по журналу"
+            onChange={(event) => {
+              const nextValue = event.target.value
+              requestGenerationRef.current += 1
+              loadingMoreRef.current = false
+              if (searchActive || isJournalSearchActive(nextValue)) {
+                setLoading(true)
+                setError('')
+              }
+              setSearchInput(nextValue)
+            }}
+          />
+          {searchInput && (
+            <button
+              type="button"
+              aria-label="Очистить поиск"
+              onClick={() => {
+                requestGenerationRef.current += 1
+                loadingMoreRef.current = false
+                setLoading(true)
+                setSearchInput('')
+                setSearchQuery('')
+              }}
+            >
+              ×
+            </button>
+          )}
+        </form>
+
         {error && (
           <div className="notice notice-error" role="alert">
             <span>{error}</span>
@@ -322,21 +405,34 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
         )}
 
         {loading ? (
-          <div className="loading-list" aria-label="Загружаем журнал">
-            <div />
-            <div />
-            <div />
-          </div>
-        ) : groups.length === 0 ? (
+          searchActive ? (
+            <div className="search-loading" role="status">Ищем записи…</div>
+          ) : (
+            <div className="loading-list" aria-label="Загружаем журнал">
+              <div />
+              <div />
+              <div />
+            </div>
+          )
+        ) : entries.length === 0 ? (
           <section className="empty-state">
             <div aria-hidden="true">○</div>
-            <h3>{mode === 'active' ? 'Активных заказов нет' : 'Журнал пока пуст'}</h3>
+            <h3>{searchActive
+              ? `По запросу «${searchQuery}» ничего не найдено ${mode === 'active' ? 'в активных заказах' : 'во всех записях'}`
+              : (mode === 'active' ? 'Активных заказов нет' : 'Журнал пока пуст')}</h3>
             <p>
-              {mode === 'active'
+              {searchActive
+                ? 'Попробуйте изменить запрос или область поиска.'
+                : mode === 'active'
                 ? 'Незавершённые заказы появятся здесь.'
                 : 'Добавьте первую продажу из наличия.'}
             </p>
-            {mode === 'all' && (
+            {searchActive && mode === 'active' && (
+              <button className="button button-primary" onClick={() => changeMode('all')}>
+                Искать во всех записях
+              </button>
+            )}
+            {!searchActive && mode === 'all' && (
               <button className="button button-primary" onClick={() => setSaleOpen(true)}>
                 + Первая продажа
               </button>
@@ -344,12 +440,19 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           </section>
         ) : (
           <div className="journal-groups" id="journal-entry-groups">
+            {searchActive && (
+              <div className="search-result-count" role="status">
+                Найдено записей: <strong>{totalItems}</strong>
+              </div>
+            )}
             {groups.map(([date, dateEntries]) => (
               <section className="journal-group" key={date}>
-                <header className="date-divider">
-                  <h3>{date}</h3>
-                  <span>{dateEntries.length} {dateEntries.length === 1 ? 'запись' : 'записи'}</span>
-                </header>
+                {!searchActive && (
+                  <header className="date-divider">
+                    <h3>{date}</h3>
+                    <span>{dateEntries.length} {dateEntries.length === 1 ? 'запись' : 'записи'}</span>
+                  </header>
+                )}
                 <div className="entry-list">
                   {dateEntries.map((entry) => {
                     const mainItem = entry.mainItem
@@ -368,7 +471,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           />
                           <span className="entry-number">
                             <strong>{isOrder ? 'З' : 'П'}-{entry.id}</strong>
-                            <small>{formatTime(entry.createdAt)}</small>
+                            <small>{searchActive
+                              ? `${formatDate(entry.createdAt)} · ${formatTime(entry.createdAt)}`
+                              : formatTime(entry.createdAt)}</small>
                           </span>
                           <span className={`entry-kind ${isOrder ? 'entry-kind-order' : ''}`}>
                             <i aria-hidden="true">●</i>
@@ -441,6 +546,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           </span>
                           <span className="chevron" aria-hidden="true">{isExpanded ? '⌃' : '⌄'}</span>
                         </div>
+
+                        {searchActive && entry.matches.length > 0 && (
+                          <p className="search-match">
+                            <strong>Совпадение:</strong> {formatSearchMatches(entry.matches)}
+                          </p>
+                        )}
 
                         {isExpanded && !entryDetails && (
                           <div className="entry-details-loading">
@@ -548,7 +659,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             <div className="journal-pagination">
               {loadMoreError ? (
                 <div className="journal-pagination-error" role="alert">
-                  <span>Не удалось загрузить более ранние записи</span>
+                  <span>{searchActive
+                    ? 'Не удалось загрузить ещё записи'
+                    : 'Не удалось загрузить более ранние записи'}</span>
                   <button
                     className="button button-quiet"
                     type="button"
@@ -565,10 +678,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                   aria-controls="journal-entry-groups"
                   onClick={() => void handleLoadMore()}
                 >
-                  {loadingMore ? 'Загружаем…' : 'Показать более ранние записи'}
+                  {loadingMore ? 'Загружаем…' : (searchActive ? 'Показать ещё' : 'Показать более ранние записи')}
                 </button>
               ) : (
-                <p className="journal-end">Более ранних записей нет</p>
+                <p className="journal-end">
+                  {searchActive ? 'Все найденные записи загружены' : 'Более ранних записей нет'}
+                </p>
               )}
               <p className="visually-hidden" aria-live="polite" aria-atomic="true">
                 {announcement}
@@ -583,6 +698,8 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           onClose={() => setSaleOpen(false)}
           onCreated={(sale) => {
             setSaleOpen(false)
+            setSearchInput('')
+            setSearchQuery('')
             changeMode('all')
             setEntries((current) => [sale, ...current.filter(({ id }) => id !== sale.id)])
             setTodayRevenue((current) => (current ?? 0) + sale.totalAmount)
@@ -596,6 +713,8 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           onClose={() => setOrderOpen(false)}
           onCreated={(order) => {
             setOrderOpen(false)
+            setSearchInput('')
+            setSearchQuery('')
             changeMode('all')
             setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
             setExpanded(new Set())
