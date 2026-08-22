@@ -96,6 +96,20 @@ export async function loadJournal(
   return response.json() as Promise<JournalPage>
 }
 
+export async function searchJournal(
+  query: string,
+  mode: 'all' | 'active',
+  page = 0,
+  size = 30,
+): Promise<JournalPage> {
+  const parameters = new URLSearchParams({query, mode, page: String(page), size: String(size)})
+  const response = await fetch(`/api/journal/search?${parameters}`, {
+    credentials: 'include',
+  })
+  if (!response.ok) throw await parseError(response)
+  return response.json() as Promise<JournalPage>
+}
+
 export async function loadJournalEntry(id: number): Promise<JournalEntryDetails> {
   const response = await fetch(`/api/journal/${id}`, { credentials: 'include' })
   if (!response.ok) throw await parseError(response)
