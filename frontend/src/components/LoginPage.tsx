@@ -7,7 +7,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [username, setUsername] = useState('admin')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -36,7 +36,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               autoComplete="username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
+              placeholder="Введите логин"
               required
+              autoFocus
             />
           </label>
           <label>
@@ -48,7 +50,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Введите пароль"
               required
-              autoFocus
             />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
