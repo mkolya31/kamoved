@@ -210,7 +210,7 @@ class JournalSearchApiIntegrationTest {
                         {"name": "Нурик Фёдор-Тест", "phone": "8 (998) 998-98-98"}
                       ],
                       "executionStatus": "NEW",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "deliveryAddress": "СНТ Главножуково",
                       "comment": "Не участвует в поиске"
                     }

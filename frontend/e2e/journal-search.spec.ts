@@ -22,7 +22,7 @@ const searchEntry = {
   executionStatus: 'NEW',
   clientName: 'Владимир',
   clientPhone: '+7 (999) 123-45-67',
-  fulfillmentMethod: 'DELIVERY',
+  fulfillmentMethod: 'DELIVERY_MARKET',
   deliveryAddress: 'СНТ Главножуково',
   version: 0,
   matches: [{field: 'ITEM', value: 'Готика Голд', additionalCount: 0}],

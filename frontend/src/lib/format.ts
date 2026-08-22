@@ -41,7 +41,8 @@ export const paymentLabels: Record<PaymentStatus, string> = {
 export const fulfillmentLabels: Record<FulfillmentMethod, string> = {
   PICKUP_WAREHOUSE: 'Самовывоз со склада',
   PICKUP_FACTORY: 'Самовывоз с завода',
-  DELIVERY: 'Доставка клиенту',
+  DELIVERY_FACTORY: 'Доставка от завода',
+  DELIVERY_MARKET: 'Доставка от рынка',
 }
 
 export function formatMoney(value: number): string {

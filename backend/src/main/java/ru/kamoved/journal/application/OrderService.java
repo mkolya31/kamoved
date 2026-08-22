@@ -192,7 +192,8 @@ public class OrderService {
         FulfillmentMethod fulfillmentMethod,
         String deliveryAddress
     ) {
-        if (fulfillmentMethod != FulfillmentMethod.DELIVERY) {
+        if (fulfillmentMethod != FulfillmentMethod.DELIVERY_FACTORY
+            && fulfillmentMethod != FulfillmentMethod.DELIVERY_MARKET) {
             return null;
         }
 

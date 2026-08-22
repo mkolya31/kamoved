@@ -3,6 +3,8 @@ package ru.kamoved.journal.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,7 +78,7 @@ class OrderApiIntegrationTest {
                       "paymentStatus": "PREPAID",
                       "prepaymentAmount": 40000,
                       "executionStatus": "IN_PRODUCTION",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_FACTORY",
                       "deliveryAddress": "СНТ Главножуково",
                       "comment": "Позвонить перед отправкой"
                     }
@@ -89,7 +91,7 @@ class OrderApiIntegrationTest {
             .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
             .andExpect(jsonPath("$.totalAmount").value(90935))
             .andExpect(jsonPath("$.clientName").value("Владимир"))
-            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY"))
+            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY_FACTORY"))
             .andReturn();
 
         JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsByteArray());
@@ -122,15 +124,16 @@ class OrderApiIntegrationTest {
         )).isEqualTo("79991234567");
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(strings = {"DELIVERY_FACTORY", "DELIVERY_MARKET"})
     @WithMockUser(username = "admin")
-    void rejectsDeliveryWithoutAddress() throws Exception {
+    void rejectsDeliveryWithoutAddress(String fulfillmentMethod) throws Exception {
         mockMvc.perform(post("/api/orders")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(minimalOrder("""
-                    "fulfillmentMethod": "DELIVERY"
-                    """)))
+                    "fulfillmentMethod": "%s"
+                    """.formatted(fulfillmentMethod))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Для доставки укажите адрес"));
     }
@@ -382,7 +385,7 @@ class OrderApiIntegrationTest {
                       "paymentStatus": "PREPAID",
                       "prepaymentAmount": 1000,
                       "executionStatus": "READY_FACTORY",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "deliveryAddress": "Новый адрес",
                       "comment": "Новый комментарий",
                       "version": 0
@@ -400,7 +403,7 @@ class OrderApiIntegrationTest {
             .andExpect(jsonPath("$.client.name").value("Новый клиент"))
             .andExpect(jsonPath("$.additionalContacts.length()").value(1))
             .andExpect(jsonPath("$.additionalContacts[0].name").value("Прораб"))
-            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY"))
+            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY_MARKET"))
             .andExpect(jsonPath("$.deliveryAddress").value("Новый адрес"))
             .andExpect(jsonPath("$.comment").value("Новый комментарий"))
             .andExpect(jsonPath("$.version").value(1));
@@ -497,7 +500,7 @@ class OrderApiIntegrationTest {
                       "additionalContacts": [],
                       "paymentStatus": "UNPAID",
                       "executionStatus": "NEW",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "version": 0
                     }
                     """))
