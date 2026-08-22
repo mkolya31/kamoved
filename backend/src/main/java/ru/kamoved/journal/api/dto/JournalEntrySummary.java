@@ -7,6 +7,7 @@ import ru.kamoved.journal.domain.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 public record JournalEntrySummary(
     Long id,
     EntryType type,
@@ -22,6 +23,7 @@ public record JournalEntrySummary(
     String clientPhone,
     FulfillmentMethod fulfillmentMethod,
     String deliveryAddress,
-    long version
+    long version,
+    List<JournalSearchMatch> matches
 ) {
 }

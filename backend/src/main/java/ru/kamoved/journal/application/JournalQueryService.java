@@ -14,6 +14,7 @@ import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.JournalEntry;
 import ru.kamoved.journal.domain.PaymentStatus;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
+import ru.kamoved.journal.persistence.JournalSearchRepository;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -39,15 +40,18 @@ public class JournalQueryService {
 
     private final JournalEntryRepository entries;
     private final JournalEntryMapper mapper;
+    private final JournalSearchRepository searchRepository;
     private final Clock clock;
 
     public JournalQueryService(
         JournalEntryRepository entries,
         JournalEntryMapper mapper,
+        JournalSearchRepository searchRepository,
         Clock clock
     ) {
         this.entries = entries;
         this.mapper = mapper;
+        this.searchRepository = searchRepository;
         this.clock = clock;
     }
 
@@ -64,7 +68,37 @@ public class JournalQueryService {
             result.getNumber(),
             result.getSize(),
             result.hasNext(),
-            todayRevenue()
+            todayRevenue(),
+            result.getTotalElements()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public JournalPageResponse search(String query, String mode, int page, int size) {
+        JournalSearchQuery parsedQuery = JournalSearchQuery.parse(query);
+        if (!parsedQuery.isSearchable()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Введите не менее двух значимых символов"
+            );
+        }
+
+        JournalSearchRepository.SearchPage result = searchRepository.search(
+            parsedQuery,
+            "active".equals(mode),
+            ACTIVE_STATUSES,
+            page,
+            size
+        );
+        return new JournalPageResponse(
+            result.items().stream()
+                .map(entry -> mapper.toSearchSummary(entry, parsedQuery))
+                .toList(),
+            page,
+            size,
+            (long) (page + 1) * size < result.total(),
+            todayRevenue(),
+            result.total()
         );
     }
 

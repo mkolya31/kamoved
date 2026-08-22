@@ -8,6 +8,7 @@ public record JournalPageResponse(
     int page,
     int size,
     boolean hasNext,
-    BigDecimal todayRevenue
+    BigDecimal todayRevenue,
+    long totalItems
 ) {
 }

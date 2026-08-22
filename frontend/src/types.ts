@@ -54,6 +54,15 @@ export interface JournalEntry {
   fulfillmentMethod: FulfillmentMethod | null
   deliveryAddress: string | null
   version: number
+  matches: JournalSearchMatch[]
+}
+
+export type JournalSearchField = 'ENTRY_NUMBER' | 'NAME' | 'PHONE' | 'ADDRESS' | 'ITEM'
+
+export interface JournalSearchMatch {
+  field: JournalSearchField
+  value: string
+  additionalCount: number
 }
 
 export interface JournalContact {
@@ -89,6 +98,7 @@ export interface JournalPage {
   size: number
   hasNext: boolean
   todayRevenue: number
+  totalItems: number
 }
 
 export interface SaleItemInput {
