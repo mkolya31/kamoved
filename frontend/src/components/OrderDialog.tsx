@@ -12,7 +12,7 @@ import {
   executionLabels,
   formatMoney,
   fulfillmentLabels,
-  paymentLabels,
+  paymentMethodLabels,
   unitLabels,
 } from '../lib/format'
 import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
@@ -26,7 +26,7 @@ import type {
   JournalContact,
   JournalItem,
   OrderInput,
-  PaymentStatus,
+  PaymentMethod,
   SaleItemInput,
   UnitOfMeasure,
 } from '../types'
@@ -55,6 +55,10 @@ interface DraftItem {
   quantity: string
   unit: UnitOfMeasure
   unitPrice: string
+}
+
+function isDeliveryMethod(method: FulfillmentMethod | ''): boolean {
+  return method === 'DELIVERY_FACTORY' || method === 'DELIVERY_MARKET'
 }
 
 interface DraftContact {
@@ -148,10 +152,10 @@ export function OrderDialog(props: OrderDialogProps) {
   const [additionalContacts, setAdditionalContacts] = useState<DraftContact[]>(() => (
     order?.additionalContacts.map(contactDraft) ?? []
   ))
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(order?.paymentStatus ?? 'UNPAID')
-  const [prepaymentAmount, setPrepaymentAmount] = useState(
-    order?.paymentStatus === 'PREPAID' ? String(order.prepaymentAmount ?? '') : '',
-  )
+  const [initialPaymentOpen, setInitialPaymentOpen] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
+  const [paymentComment, setPaymentComment] = useState('')
   const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>(order?.executionStatus ?? 'NEW')
   const [fulfillmentMethod, setFulfillmentMethod] = useState<FulfillmentMethod | ''>(
     order?.fulfillmentMethod ?? '',
@@ -186,8 +190,10 @@ export function OrderDialog(props: OrderDialogProps) {
       phone,
       comment,
     })),
-    paymentStatus,
-    prepaymentAmount,
+    initialPaymentOpen,
+    paymentAmount,
+    paymentMethod,
+    paymentComment,
     executionStatus,
     fulfillmentMethod,
     deliveryAddress,
@@ -291,20 +297,25 @@ export function OrderDialog(props: OrderDialogProps) {
       return
     }
 
-    let parsedPrepayment: number | undefined
-    if (paymentStatus === 'PREPAID') {
-      if (!isDecimal(prepaymentAmount, 2)) {
-        setError('Укажите сумму предоплаты')
+    let initialPayment: OrderInput['initialPayment']
+    if (!isEditing && initialPaymentOpen) {
+      if (!isDecimal(paymentAmount, 2)) {
+        setError('Укажите сумму платежа')
         return
       }
-      parsedPrepayment = parseDecimal(prepaymentAmount)
-      if (parsedPrepayment <= 0 || parsedPrepayment >= total) {
-        setError('Предоплата должна быть больше нуля и меньше суммы заказа')
+      const parsedPaymentAmount = parseDecimal(paymentAmount)
+      if (parsedPaymentAmount <= 0 || parsedPaymentAmount > total) {
+        setError('Платёж должен быть больше нуля и не превышать сумму заказа')
         return
+      }
+      initialPayment = {
+        amount: parsedPaymentAmount,
+        paymentMethod,
+        comment: paymentComment.trim() || undefined,
       }
     }
 
-    if (fulfillmentMethod === 'DELIVERY' && !deliveryAddress.trim()) {
+    if (isDeliveryMethod(fulfillmentMethod) && !deliveryAddress.trim()) {
       setError('Для доставки укажите адрес')
       return
     }
@@ -315,11 +326,10 @@ export function OrderDialog(props: OrderDialogProps) {
       additionalContacts: additionalContacts
         .map(contactPayload)
         .filter((contact): contact is ContactInput => contact !== undefined),
-      paymentStatus,
-      prepaymentAmount: parsedPrepayment,
+      initialPayment,
       executionStatus,
       fulfillmentMethod: fulfillmentMethod || undefined,
-      deliveryAddress: fulfillmentMethod === 'DELIVERY' ? deliveryAddress.trim() : undefined,
+      deliveryAddress: isDeliveryMethod(fulfillmentMethod) ? deliveryAddress.trim() : undefined,
       comment: comment.trim() || undefined,
     }
 
@@ -575,42 +585,78 @@ export function OrderDialog(props: OrderDialogProps) {
             </button>
           </section>
 
+          {!isEditing && (
+            <section className="order-form-section order-payment-section">
+              <header>
+                <h3>Оплата</h3>
+                <span>необязательно</span>
+              </header>
+              {!initialPaymentOpen && (
+                <button
+                  className="button button-quiet"
+                  type="button"
+                  onClick={() => {
+                    setInitialPaymentOpen(true)
+                    setError('')
+                  }}
+                >
+                  + Добавить платёж
+                </button>
+              )}
+              {initialPaymentOpen && (
+                <fieldset className="order-payment-fields">
+                  <button
+                    className="remove-item remove-payment"
+                    type="button"
+                    onClick={() => {
+                      setInitialPaymentOpen(false)
+                      setError('')
+                    }}
+                  >
+                    Удалить платёж
+                  </button>
+                  <label>
+                    Сумма платежа, ₽
+                    <input
+                      inputMode="decimal"
+                      value={paymentAmount}
+                      onChange={(event) => setPaymentAmount(event.target.value)}
+                      placeholder="0"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Способ оплаты
+                    <select
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                    >
+                      {Object.entries(paymentMethodLabels).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="field-label">
+                      Комментарий к платежу <small>необязательно</small>
+                    </span>
+                    <input
+                      value={paymentComment}
+                      onChange={(event) => setPaymentComment(event.target.value)}
+                      maxLength={5000}
+                      placeholder="Например, аванс наличными"
+                    />
+                  </label>
+                </fieldset>
+              )}
+            </section>
+          )}
+
           <section className="order-form-section">
             <header>
               <h3>Состояние заказа</h3>
             </header>
             <div className="order-settings-groups">
-              <div className="order-settings-group">
-                <label className="order-settings-primary-field">
-                  Статус оплаты
-                  <select
-                    value={paymentStatus}
-                    onChange={(event) => {
-                      const next = event.target.value as PaymentStatus
-                      setPaymentStatus(next)
-                      if (next !== 'PREPAID') setPrepaymentAmount('')
-                    }}
-                  >
-                    {Object.entries(paymentLabels).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-                {paymentStatus === 'PREPAID' && (
-                  <div className="order-settings-dependent-fields">
-                    <label>
-                      Сумма предоплаты, ₽
-                      <input
-                        inputMode="decimal"
-                        value={prepaymentAmount}
-                        onChange={(event) => setPrepaymentAmount(event.target.value)}
-                        placeholder="0"
-                        required
-                      />
-                    </label>
-                  </div>
-                )}
-              </div>
 
               <div className="order-settings-group">
                 <label className="order-settings-primary-field">
@@ -634,7 +680,7 @@ export function OrderDialog(props: OrderDialogProps) {
                     onChange={(event) => {
                       const next = event.target.value as FulfillmentMethod | ''
                       setFulfillmentMethod(next)
-                      if (next !== 'DELIVERY') setDeliveryAddress('')
+                      if (!isDeliveryMethod(next)) setDeliveryAddress('')
                     }}
                   >
                     <option value="">Не указан</option>
@@ -643,7 +689,7 @@ export function OrderDialog(props: OrderDialogProps) {
                     ))}
                   </select>
                 </label>
-                {fulfillmentMethod === 'DELIVERY' && (
+                {isDeliveryMethod(fulfillmentMethod) && (
                   <div className="order-settings-dependent-fields">
                     <label>
                       Адрес доставки

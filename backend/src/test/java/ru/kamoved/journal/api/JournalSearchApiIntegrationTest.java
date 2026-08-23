@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @WithMockUser(username = "admin")
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry"
@@ -210,7 +211,7 @@ class JournalSearchApiIntegrationTest {
                         {"name": "Нурик Фёдор-Тест", "phone": "8 (998) 998-98-98"}
                       ],
                       "executionStatus": "NEW",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "deliveryAddress": "СНТ Главножуково",
                       "comment": "Не участвует в поиске"
                     }

@@ -174,6 +174,7 @@ textarea:focus-visible {
 
 .login-form label,
 .sale-item label,
+.sale-payment-fields label,
 .order-dialog label {
   display: grid;
   gap: 7px;
@@ -1039,10 +1040,18 @@ input::placeholder {
 .payment-amount-field {
   display: grid;
   gap: 7px;
-  margin: 0 28px 18px;
+  margin: 0 28px 14px;
   color: #4d4741;
   font-size: 13px;
   font-weight: 700;
+}
+
+.payment-amount-field textarea {
+  min-height: 72px;
+}
+
+.payment-correction-first-field {
+  margin-top: 18px;
 }
 
 .payment-amount-field input[aria-invalid='true'] {
@@ -1069,8 +1078,8 @@ input::placeholder {
 .payment-totals {
   display: grid;
   gap: 8px;
-  margin: 0 28px 24px;
-  padding: 16px;
+  margin: 18px 28px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f9f6f1;
@@ -1113,6 +1122,121 @@ input::placeholder {
   justify-content: flex-end;
   margin-top: 0;
   padding: 18px 28px;
+}
+
+.payment-full-balance {
+  width: calc(100% - 56px);
+  margin: 0 28px 14px;
+}
+
+.payment-preview {
+  margin: 0 28px 14px;
+  color: var(--muted);
+}
+
+.sale-payment-fields,
+.order-payment-fields {
+  display: grid;
+  align-items: end;
+  gap: 16px;
+  min-width: 0;
+  padding: 17px 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbf8f3;
+}
+
+.sale-payment-fields {
+  grid-template-columns: minmax(12rem, 0.7fr) minmax(16rem, 1.3fr);
+  margin: 24px 32px 0;
+}
+
+.order-payment-fields {
+  position: relative;
+  grid-template-columns: minmax(10rem, 0.7fr) minmax(12rem, 0.8fr) minmax(16rem, 1.3fr);
+  margin: 20px 0 0;
+}
+
+.sale-payment-fields legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-label small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.payment-history {
+  grid-column: 1 / -1;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.payment-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.entry-details .payment-history-header h4 {
+  margin: 0;
+}
+
+.payment-history-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payment-history-list > li {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.payment-history-list > li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.payment-history-list p {
+  margin: 0;
+}
+
+.payment-history-list .payment-voided {
+  opacity: 0.65;
+  background: #f3f0eb;
+}
+
+.payment-correction-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.payment-correct-button {
+  justify-self: start;
+  margin-top: 4px;
 }
 
 .order-form-section {
@@ -1281,6 +1405,10 @@ input::placeholder {
   cursor: pointer;
 }
 
+.order-payment-fields .remove-payment {
+  background: #fbf8f3;
+}
+
 .add-item {
   margin: 16px 32px 0;
 }
@@ -1292,14 +1420,6 @@ input::placeholder {
   color: #4d4741;
   font-size: 13px;
   font-weight: 700;
-}
-
-.sale-comment > span {
-  margin-top: -23px;
-  justify-self: end;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
 }
 
 .sale-dialog > form > .form-error {
@@ -1447,7 +1567,8 @@ input::placeholder {
   }
 
   .contact-fields,
-  .order-settings-dependent-fields {
+  .order-settings-dependent-fields,
+  .order-payment-fields {
     grid-template-columns: 1fr;
   }
 
@@ -1504,6 +1625,17 @@ input::placeholder {
     display: grid;
     grid-template-columns: 1fr 1fr;
     padding-inline: 20px;
+  }
+
+  .payment-full-balance,
+  .payment-preview {
+    width: calc(100% - 40px);
+    margin-inline: 20px;
+  }
+
+  .sale-payment-fields {
+    grid-template-columns: 1fr;
+    margin-inline: 20px;
   }
 }
 

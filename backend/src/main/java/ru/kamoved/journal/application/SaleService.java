@@ -8,6 +8,7 @@ import ru.kamoved.journal.api.dto.CreateSaleRequest;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
 import ru.kamoved.journal.domain.JournalEntry;
 import ru.kamoved.journal.domain.JournalEntryItem;
+import ru.kamoved.journal.domain.JournalPayment;
 import ru.kamoved.journal.domain.MoneyCalculator;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
 
@@ -54,6 +55,15 @@ public class SaleService {
 
         sale.setTotalAmount(moneyCalculator.calculateOrderTotal(
             sale.getItems().stream().map(JournalEntryItem::getLineTotal).toList()
+        ));
+        if (sale.getTotalAmount().signum() <= 0) {
+            throw new InvalidPaymentException("Сумма продажи должна быть больше нуля");
+        }
+        sale.addPayment(JournalPayment.received(
+            sale.getTotalAmount(),
+            request.paymentMethod(),
+            trimToNull(request.paymentComment()),
+            creator
         ));
         sale.refreshSearchText();
 

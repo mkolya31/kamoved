@@ -1,7 +1,7 @@
 import { type FormEvent, useMemo, useState } from 'react'
 import { ApiError, createSale } from '../lib/api'
-import { formatMoney, unitLabels } from '../lib/format'
-import type { JournalEntry, SaleItemInput, UnitOfMeasure } from '../types'
+import { formatMoney, paymentMethodLabels, unitLabels } from '../lib/format'
+import type { JournalEntry, PaymentMethod, SaleItemInput, UnitOfMeasure } from '../types'
 
 interface SaleDialogProps {
   onClose: () => void
@@ -54,6 +54,8 @@ function lineTotal(item: DraftItem): number {
 
 export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
   const [items, setItems] = useState<DraftItem[]>([emptyItem()])
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
+  const [paymentComment, setPaymentComment] = useState('')
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -94,7 +96,12 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
 
     setSubmitting(true)
     try {
-      onCreated(await createSale(payload, comment.trim() || undefined))
+      onCreated(await createSale(
+        payload,
+        paymentMethod,
+        paymentComment.trim() || undefined,
+        comment.trim() || undefined,
+      ))
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Не удалось сохранить продажу')
     } finally {
@@ -115,7 +122,7 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
           <div>
             <p className="eyebrow">Быстрая запись</p>
             <h2 id="sale-dialog-title">Продажа из наличия</h2>
-            <p>Оплата и завершение будут отмечены автоматически.</p>
+            <p>Продажа будет завершена, а платёж создан на полную сумму.</p>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть">
             ×
@@ -195,8 +202,36 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
             + Добавить позицию
           </button>
 
+          <fieldset className="sale-payment-fields">
+            <legend>Оплата</legend>
+            <label>
+              Способ оплаты
+              <select
+                value={paymentMethod}
+                onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+              >
+                {Object.entries(paymentMethodLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="field-label">
+                Комментарий к платежу <small>необязательно</small>
+              </span>
+              <input
+                value={paymentComment}
+                onChange={(event) => setPaymentComment(event.target.value)}
+                maxLength={5000}
+                placeholder="Например, наличные в кассе"
+              />
+            </label>
+          </fieldset>
+
           <label className="sale-comment">
-            Комментарий <span>необязательно</span>
+            <span className="field-label">
+              Комментарий к продаже <small>необязательно</small>
+            </span>
             <textarea
               value={comment}
               onChange={(event) => setComment(event.target.value)}

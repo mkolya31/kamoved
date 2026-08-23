@@ -18,6 +18,7 @@ function entry(id: number, createdAt = '2025-01-10T12:00:00+03:00'): JournalEntr
     totalAmount: id,
     paymentStatus: 'PAID',
     prepaymentAmount: null,
+    paidAmount: id,
     remainingAmount: 0,
     executionStatus: 'COMPLETED',
     clientName: null,

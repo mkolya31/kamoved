@@ -1,6 +1,7 @@
 import type {
   ExecutionStatus,
   FulfillmentMethod,
+  PaymentMethod,
   PaymentStatus,
   UnitOfMeasure,
 } from '../types'
@@ -38,10 +39,18 @@ export const paymentLabels: Record<PaymentStatus, string> = {
   PAID: 'Оплачено',
 }
 
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  CASH: 'Наличными',
+  BANK_ACCOUNT: 'По реквизитам',
+  CARD: 'Картой',
+  PERSONAL_TRANSFER: 'Переводом',
+}
+
 export const fulfillmentLabels: Record<FulfillmentMethod, string> = {
   PICKUP_WAREHOUSE: 'Самовывоз со склада',
   PICKUP_FACTORY: 'Самовывоз с завода',
-  DELIVERY: 'Доставка клиенту',
+  DELIVERY_FACTORY: 'Доставка от завода',
+  DELIVERY_MARKET: 'Доставка от рынка',
 }
 
 export function formatMoney(value: number): string {

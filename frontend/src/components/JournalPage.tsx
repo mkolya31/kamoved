@@ -14,6 +14,7 @@ import {
   formatTime,
   fulfillmentLabels,
   paymentLabels,
+  paymentMethodLabels,
 } from '../lib/format'
 import { formatDate } from '../lib/format'
 import {
@@ -26,9 +27,10 @@ import {
 } from '../lib/journalPagination'
 import { formatSearchMatches, isJournalSearchActive } from '../lib/journalSearch'
 import { summaryFromDetails } from '../lib/order'
-import type { ExecutionStatus, JournalEntry, JournalEntryDetails, User } from '../types'
+import type { ExecutionStatus, JournalEntry, JournalEntryDetails, PaymentDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { PaymentDialog } from './PaymentDialog'
+import { PaymentCorrectionDialog } from './PaymentCorrectionDialog'
 import { SaleDialog } from './SaleDialog'
 
 interface JournalPageProps {
@@ -38,6 +40,12 @@ interface JournalPageProps {
 
 const executionStatuses = Object.keys(executionLabels) as ExecutionStatus[]
 const terminalExecutionStatuses: ExecutionStatus[] = ['COMPLETED', 'CANCELLED']
+
+function comparePaymentsNewestFirst(first: PaymentDetails, second: PaymentDetails) {
+  return second.receivedAt.localeCompare(first.receivedAt)
+    || second.createdAt.localeCompare(first.createdAt)
+    || second.id - first.id
+}
 
 export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [pagination, dispatchPagination] = useReducer(
@@ -59,6 +67,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
   const [details, setDetails] = useState<Map<number, JournalEntryDetails>>(new Map())
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
   const [paymentEntry, setPaymentEntry] = useState<JournalEntry | null>(null)
+  const [correctionPayment, setCorrectionPayment] = useState<{
+    entryType: JournalEntry['type']
+    payment: PaymentDetails
+  } | null>(null)
   const [editingOrder, setEditingOrder] = useState<JournalEntryDetails | null>(null)
   const requestGenerationRef = useRef(0)
   const loadingMoreRef = useRef(false)
@@ -251,6 +263,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
       void refresh()
       return
     }
+    const previous = entries.find((entry) => entry.id === updated.id)
+    if (previous) {
+      setTodayRevenue((current) => (current ?? 0) + updated.paidAmount - previous.paidAmount)
+    }
     setEntries((current) => current.map((entry) => entry.id === updated.id ? updated : entry))
     setDetails((current) => {
       const loaded = current.get(updated.id)
@@ -260,12 +276,25 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
         ...loaded,
         paymentStatus: updated.paymentStatus,
         prepaymentAmount: updated.prepaymentAmount,
+        paidAmount: updated.paidAmount,
         remainingAmount: updated.remainingAmount,
         version: updated.version,
       })
       return next
     })
+    void loadJournalEntry(updated.id).then((loaded) => {
+      setDetails((current) => new Map(current).set(updated.id, loaded))
+    })
     setPaymentEntry(null)
+  }
+
+  function handlePaymentCorrected(updated: JournalEntryDetails) {
+    setDetails((current) => new Map(current).set(updated.id, updated))
+    setEntries((current) => current.map((entry) => (
+      entry.id === updated.id ? summaryFromDetails(entry, updated) : entry
+    )))
+    setCorrectionPayment(null)
+    void refresh()
   }
 
   function handleOrderUpdated(updated: JournalEntryDetails) {
@@ -494,16 +523,17 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           <strong className="entry-total">{formatMoney(entry.totalAmount)}</strong>
                           <span className="status-stack">
                             <span className="payment-status-summary">
-                              {isOrder ? (
+                              {isOrder && entry.remainingAmount > 0 ? (
                                 <button
                                   className={`status payment-status-button status-payment-${entry.paymentStatus.toLowerCase()}`}
                                   type="button"
                                   onClick={() => setPaymentEntry(entry)}
-                                  aria-label={`Изменить оплату заказа З-${entry.id}: ${paymentLabels[entry.paymentStatus]}`}
+                                  aria-label={`Добавить платёж к заказу З-${entry.id}: ${paymentLabels[entry.paymentStatus]}`}
                                 >
-                                  <span>{paymentLabels[entry.paymentStatus]}</span>
-                                  {entry.executionStatus !== 'COMPLETED'
-                                    && entry.paymentStatus !== 'PAID' && (
+                                  <span>{entry.paymentStatus === 'PREPAID'
+                                    ? `Предоплата ${formatMoney(entry.paidAmount)}`
+                                    : paymentLabels[entry.paymentStatus]}</span>
+                                  {entry.paymentStatus !== 'PAID' && (
                                     <svg
                                       className="payment-status-edit-icon"
                                       viewBox="0 0 16 16"
@@ -516,7 +546,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 </button>
                               ) : (
                                 <span className={`status status-payment-${entry.paymentStatus.toLowerCase()}`}>
-                                  {paymentLabels[entry.paymentStatus]}
+                                  {entry.paymentStatus === 'PREPAID'
+                                    ? `Предоплата ${formatMoney(entry.paidAmount)}`
+                                    : paymentLabels[entry.paymentStatus]}
                                 </span>
                               )}
                               {isOrder && entry.paymentStatus === 'PREPAID' && (
@@ -609,9 +641,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                       <div>
                                         <dt>Внесено</dt>
                                         <dd>{formatMoney(
-                                          entryDetails.paymentStatus === 'PAID'
-                                            ? entryDetails.totalAmount
-                                            : (entryDetails.prepaymentAmount ?? 0),
+                                          entryDetails.paidAmount,
                                         )}</dd>
                                       </div>
                                       <div>
@@ -648,6 +678,63 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                 <small>Создал: {entryDetails.createdByDisplayName}</small>
                               </div>
                             )}
+                            <section className="payment-history">
+                              <header className="payment-history-header">
+                                <h4>История платежей</h4>
+                                {isOrder && entry.remainingAmount > 0 && (
+                                  <button
+                                    className="button button-quiet"
+                                    type="button"
+                                    onClick={() => setPaymentEntry(entry)}
+                                  >
+                                    + Добавить платёж
+                                  </button>
+                                )}
+                              </header>
+                              {entryDetails.payments.length === 0 ? (
+                                <p>Платежей пока нет.</p>
+                              ) : (
+                                <ul className="payment-history-list">
+                                  {[...entryDetails.payments].sort(comparePaymentsNewestFirst).map((payment) => {
+                                    const correction = entryDetails.payments.find(
+                                      (candidate) => candidate.correctionOfId === payment.id,
+                                    )
+                                    return (
+                                      <li key={payment.id} className={payment.active ? '' : 'payment-voided'}>
+                                        <div>
+                                          <strong>{formatMoney(payment.amount)}</strong>
+                                          <span>{payment.paymentMethod
+                                            ? paymentMethodLabels[payment.paymentMethod]
+                                            : 'Не указано'}</span>
+                                        </div>
+                                        <small>
+                                          {new Date(payment.receivedAt).toLocaleString('ru-RU')} · {payment.createdByDisplayName}
+                                        </small>
+                                        {payment.comment && <p>{payment.comment}</p>}
+                                        {!payment.active && correction && (
+                                          <p className="payment-correction-note">
+                                            Исправлен {new Date(correction.createdAt).toLocaleString('ru-RU')}
+                                            {' · '}{correction.createdByDisplayName}. Причина: {correction.correctionReason}
+                                          </p>
+                                        )}
+                                        {payment.active && payment.correctionOfId && (
+                                          <p className="payment-correction-note">Актуальная версия исправленного платежа</p>
+                                        )}
+                                        {payment.active && (
+                                          <button
+                                            className="button button-quiet payment-correct-button"
+                                            type="button"
+                                            onClick={() => setCorrectionPayment({ entryType: entryDetails.type, payment })}
+                                          >
+                                            Исправить платёж
+                                          </button>
+                                        )}
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
+                              )}
+                            </section>
                           </div>
                         )}
                       </article>
@@ -717,6 +804,7 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
             setSearchQuery('')
             changeMode('all')
             setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
+            setTodayRevenue((current) => (current ?? 0) + order.paidAmount)
             setExpanded(new Set())
           }}
         />
@@ -727,6 +815,15 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           entry={paymentEntry}
           onClose={() => setPaymentEntry(null)}
           onUpdated={handlePaymentUpdated}
+        />
+      )}
+
+      {correctionPayment && (
+        <PaymentCorrectionDialog
+          entryType={correctionPayment.entryType}
+          payment={correctionPayment.payment}
+          onClose={() => setCorrectionPayment(null)}
+          onUpdated={handlePaymentCorrected}
         />
       )}
 

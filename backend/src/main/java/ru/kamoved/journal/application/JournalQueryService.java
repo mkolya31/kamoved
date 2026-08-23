@@ -12,8 +12,8 @@ import ru.kamoved.journal.api.dto.JournalPageResponse;
 import ru.kamoved.journal.domain.EntryType;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.JournalEntry;
-import ru.kamoved.journal.domain.PaymentStatus;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
+import ru.kamoved.journal.persistence.JournalPaymentRepository;
 import ru.kamoved.journal.persistence.JournalSearchRepository;
 
 import java.math.BigDecimal;
@@ -41,17 +41,20 @@ public class JournalQueryService {
     private final JournalEntryRepository entries;
     private final JournalEntryMapper mapper;
     private final JournalSearchRepository searchRepository;
+    private final JournalPaymentRepository payments;
     private final Clock clock;
 
     public JournalQueryService(
         JournalEntryRepository entries,
         JournalEntryMapper mapper,
         JournalSearchRepository searchRepository,
+        JournalPaymentRepository payments,
         Clock clock
     ) {
         this.entries = entries;
         this.mapper = mapper;
         this.searchRepository = searchRepository;
+        this.payments = payments;
         this.clock = clock;
     }
 
@@ -107,13 +110,7 @@ public class JournalQueryService {
         OffsetDateTime from = today.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
         OffsetDateTime until = today.plusDays(1).atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
 
-        return entries.sumRevenueByCreatedAt(
-            EntryType.SALE,
-            PaymentStatus.PAID,
-            ExecutionStatus.COMPLETED,
-            from,
-            until
-        );
+        return payments.sumActivePaymentsReceivedBetween(from, until);
     }
 
     @Transactional(readOnly = true)

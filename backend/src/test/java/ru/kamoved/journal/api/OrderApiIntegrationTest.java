@@ -3,6 +3,8 @@ package ru.kamoved.journal.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry"
@@ -73,10 +76,13 @@ class OrderApiIntegrationTest {
                           "comment": "Прораб, звонить по доставке"
                         }
                       ],
-                      "paymentStatus": "PREPAID",
-                      "prepaymentAmount": 40000,
+                      "initialPayment": {
+                        "amount": 40000,
+                        "paymentMethod": "PERSONAL_TRANSFER",
+                        "comment": "Перевод на карту"
+                      },
                       "executionStatus": "IN_PRODUCTION",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_FACTORY",
                       "deliveryAddress": "СНТ Главножуково",
                       "comment": "Позвонить перед отправкой"
                     }
@@ -89,7 +95,7 @@ class OrderApiIntegrationTest {
             .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
             .andExpect(jsonPath("$.totalAmount").value(90935))
             .andExpect(jsonPath("$.clientName").value("Владимир"))
-            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY"))
+            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY_FACTORY"))
             .andReturn();
 
         JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsByteArray());
@@ -122,15 +128,16 @@ class OrderApiIntegrationTest {
         )).isEqualTo("79991234567");
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(strings = {"DELIVERY_FACTORY", "DELIVERY_MARKET"})
     @WithMockUser(username = "admin")
-    void rejectsDeliveryWithoutAddress() throws Exception {
+    void rejectsDeliveryWithoutAddress(String fulfillmentMethod) throws Exception {
         mockMvc.perform(post("/api/orders")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(minimalOrder("""
-                    "fulfillmentMethod": "DELIVERY"
-                    """)))
+                    "fulfillmentMethod": "%s"
+                    """.formatted(fulfillmentMethod))))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Для доставки укажите адрес"));
     }
@@ -142,11 +149,10 @@ class OrderApiIntegrationTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(minimalOrder("""
-                    "paymentStatus": "PREPAID",
-                    "prepaymentAmount": 1000
+                    "initialPayment": {"amount": 1001, "paymentMethod": "CASH"}
                     """)))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Предоплата должна быть меньше суммы заказа"));
+            .andExpect(jsonPath("$.message").value("Сумма платежа не может превышать остаток заказа"));
     }
 
     @Test
@@ -197,7 +203,7 @@ class OrderApiIntegrationTest {
 
     @Test
     @WithMockUser(username = "admin")
-    void changesPaymentThroughAllStatusesWithoutChangingExecutionStatus() throws Exception {
+    void addsSeveralPaymentsAndDerivesStatusWithoutChangingExecutionStatus() throws Exception {
         MvcResult createResult = mockMvc.perform(post("/api/orders")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -210,125 +216,110 @@ class OrderApiIntegrationTest {
         long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
             .get("id").asLong();
 
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/orders/{id}/payments", orderId)
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "paymentStatus": "PREPAID",
-                      "paidAmount": 400,
-                      "version": 0
+                      "amount": 400,
+                      "paymentMethod": "CASH",
+                      "comment": "В кассу"
                     }
                     """))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.paymentStatus").value("PREPAID"))
             .andExpect(jsonPath("$.prepaymentAmount").value(400))
+            .andExpect(jsonPath("$.paidAmount").value(400))
             .andExpect(jsonPath("$.remainingAmount").value(600))
-            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
-            .andExpect(jsonPath("$.version").value(1));
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"));
 
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/orders/{id}/payments", orderId)
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "paymentStatus": "PAID",
-                      "version": 1
+                      "amount": 600,
+                      "paymentMethod": "CARD"
                     }
                     """))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.paymentStatus").value("PAID"))
             .andExpect(jsonPath("$.prepaymentAmount").isEmpty())
+            .andExpect(jsonPath("$.paidAmount").value(1000))
             .andExpect(jsonPath("$.remainingAmount").value(0))
-            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
-            .andExpect(jsonPath("$.version").value(2));
-
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "paymentStatus": "UNPAID",
-                      "version": 2
-                    }
-                    """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paymentStatus").value("UNPAID"))
-            .andExpect(jsonPath("$.remainingAmount").value(1000))
-            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"))
-            .andExpect(jsonPath("$.version").value(3));
+            .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"));
 
         mockMvc.perform(get("/api/journal/{id}", orderId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paymentStatus").value("UNPAID"))
-            .andExpect(jsonPath("$.prepaymentAmount").isEmpty())
-            .andExpect(jsonPath("$.remainingAmount").value(1000))
+            .andExpect(jsonPath("$.paymentStatus").value("PAID"))
+            .andExpect(jsonPath("$.payments.length()").value(2))
+            .andExpect(jsonPath("$.payments[0].paymentMethod").value("CASH"))
+            .andExpect(jsonPath("$.payments[1].paymentMethod").value("CARD"))
             .andExpect(jsonPath("$.executionStatus").value("IN_PRODUCTION"));
     }
 
     @Test
     @WithMockUser(username = "admin")
-    void validatesPaymentAmountAndRejectsStalePaymentVersion() throws Exception {
+    void validatesAndCorrectsPaymentWithoutDeletingHistory() throws Exception {
         MvcResult createResult = mockMvc.perform(post("/api/orders")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(minimalOrder("\"paymentStatus\": \"UNPAID\"")))
+                .content(minimalOrder("\"executionStatus\": \"NEW\"")))
             .andExpect(status().isCreated())
             .andReturn();
 
         long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
             .get("id").asLong();
 
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/orders/{id}/payments", orderId)
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "paymentStatus": "PREPAID",
-                      "version": 0
+                      "amount": 1001,
+                      "paymentMethod": "CASH"
                     }
                     """))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Для предоплаты укажите внесённую сумму"));
+            .andExpect(jsonPath("$.message").value("Сумма платежа не может превышать остаток заказа"));
 
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+        MvcResult paymentResult = mockMvc.perform(post("/api/orders/{id}/payments", orderId)
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "paymentStatus": "PREPAID",
-                      "paidAmount": 1001,
-                      "version": 0
+                      "amount": 400,
+                      "paymentMethod": "CASH"
                     }
                     """))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Предоплата должна быть меньше суммы заказа"));
+            .andExpect(status().isCreated())
+            .andReturn();
 
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
+        long paymentId = jdbc.queryForObject(
+            "SELECT id FROM journal_payment WHERE journal_entry_id = ? AND voided_at IS NULL",
+            Long.class,
+            orderId
+        );
+
+        mockMvc.perform(post("/api/payments/{id}/corrections", paymentId)
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "paymentStatus": "PREPAID",
-                      "paidAmount": 400,
-                      "version": 0
+                      "amount": 300,
+                      "paymentMethod": "BANK_ACCOUNT",
+                      "comment": "Исправленные данные",
+                      "reason": "Ошибочно указана сумма"
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.version").value(1));
-
-        mockMvc.perform(patch("/api/orders/{id}/payment", orderId)
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "paymentStatus": "PAID",
-                      "version": 0
-                    }
-                    """))
-            .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.message").value(
-                "Заказ уже изменён другим пользователем. Обновите журнал и повторите действие"));
+            .andExpect(jsonPath("$.paidAmount").value(300))
+            .andExpect(jsonPath("$.remainingAmount").value(700))
+            .andExpect(jsonPath("$.payments.length()").value(2))
+            .andExpect(jsonPath("$.payments[0].active").value(false))
+            .andExpect(jsonPath("$.payments[1].active").value(true))
+            .andExpect(jsonPath("$.payments[1].correctionOfId").value(paymentId))
+            .andExpect(jsonPath("$.payments[1].correctionReason").value("Ошибочно указана сумма"));
     }
 
     @Test
@@ -340,6 +331,7 @@ class OrderApiIntegrationTest {
                 .content(minimalOrder("""
                     "client": {"name": "Старый клиент", "phone": "+7 900 000-00-00"},
                     "additionalContacts": [{"name": "Старый контакт"}],
+                    "initialPayment": {"amount": 1000, "paymentMethod": "CASH"},
                     "comment": "Старый комментарий"
                     """)))
             .andExpect(status().isCreated())
@@ -379,10 +371,8 @@ class OrderApiIntegrationTest {
                           "comment": "Звонить перед доставкой"
                         }
                       ],
-                      "paymentStatus": "PREPAID",
-                      "prepaymentAmount": 1000,
                       "executionStatus": "READY_FACTORY",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "deliveryAddress": "Новый адрес",
                       "comment": "Новый комментарий",
                       "version": 0
@@ -400,7 +390,7 @@ class OrderApiIntegrationTest {
             .andExpect(jsonPath("$.client.name").value("Новый клиент"))
             .andExpect(jsonPath("$.additionalContacts.length()").value(1))
             .andExpect(jsonPath("$.additionalContacts[0].name").value("Прораб"))
-            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY"))
+            .andExpect(jsonPath("$.fulfillmentMethod").value("DELIVERY_MARKET"))
             .andExpect(jsonPath("$.deliveryAddress").value("Новый адрес"))
             .andExpect(jsonPath("$.comment").value("Новый комментарий"))
             .andExpect(jsonPath("$.version").value(1));
@@ -495,9 +485,8 @@ class OrderApiIntegrationTest {
                         }
                       ],
                       "additionalContacts": [],
-                      "paymentStatus": "UNPAID",
                       "executionStatus": "NEW",
-                      "fulfillmentMethod": "DELIVERY",
+                      "fulfillmentMethod": "DELIVERY_MARKET",
                       "version": 0
                     }
                     """))
@@ -537,7 +526,6 @@ class OrderApiIntegrationTest {
                 }
               ],
               "additionalContacts": [],
-              "paymentStatus": "UNPAID",
               "executionStatus": "NEW",
               "comment": "%s",
               "version": %d

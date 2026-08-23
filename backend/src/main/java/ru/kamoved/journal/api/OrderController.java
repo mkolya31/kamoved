@@ -14,7 +14,6 @@ import ru.kamoved.journal.api.dto.CreateOrderRequest;
 import ru.kamoved.journal.api.dto.JournalEntryDetails;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
 import ru.kamoved.journal.api.dto.UpdateOrderRequest;
-import ru.kamoved.journal.api.dto.UpdateOrderPaymentRequest;
 import ru.kamoved.journal.api.dto.UpdateOrderStatusRequest;
 import ru.kamoved.journal.application.OrderService;
 
@@ -57,16 +56,4 @@ public class OrderController {
         );
     }
 
-    @PatchMapping("/{id}/payment")
-    JournalEntrySummary updatePayment(
-        @PathVariable long id,
-        @Valid @RequestBody UpdateOrderPaymentRequest request
-    ) {
-        return orderService.updatePayment(
-            id,
-            request.paymentStatus(),
-            request.paidAmount(),
-            request.version()
-        );
-    }
 }
