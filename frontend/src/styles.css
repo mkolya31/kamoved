@@ -123,8 +123,31 @@ textarea:focus-visible {
   box-shadow: none;
 }
 
+.brand-mark-local {
+  background: #2563eb;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.3);
+}
+
 .kamoved-logo {
   height: 42px;
+}
+
+.local-environment-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 1000;
+  padding: 7px 18px 8px;
+  border-radius: 0 0 8px 8px;
+  color: white;
+  background: #2563eb;
+  box-shadow: 0 5px 18px rgba(23, 55, 120, 0.35);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: translateX(-50%);
 }
 
 .boot-screen {

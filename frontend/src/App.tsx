@@ -4,6 +4,18 @@ import { JournalPage } from './components/JournalPage'
 import { LoginPage } from './components/LoginPage'
 import type { User } from './types'
 
+function LocalEnvironmentBanner() {
+  if (!import.meta.env.DEV) {
+    return null
+  }
+
+  return (
+    <div className="local-environment-banner" role="status">
+      Локальная версия
+    </div>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -19,15 +31,22 @@ export default function App() {
 
   if (checkingSession) {
     return (
-      <main className="boot-screen">
-        <div className="brand-mark" aria-hidden="true">К</div>
-        <p>Открываем журнал…</p>
-      </main>
+      <>
+        <LocalEnvironmentBanner />
+        <main className="boot-screen">
+          <div className={`brand-mark${import.meta.env.DEV ? ' brand-mark-local' : ''}`} aria-hidden="true">К</div>
+          <p>Открываем журнал…</p>
+        </main>
+      </>
     )
   }
 
-  return user
-    ? <JournalPage user={user} onLogout={clearSession} />
-    : <LoginPage onLogin={setUser} />
+  return (
+    <>
+      <LocalEnvironmentBanner />
+      {user
+        ? <JournalPage user={user} onLogout={clearSession} />
+        : <LoginPage onLogin={setUser} />}
+    </>
+  )
 }
-

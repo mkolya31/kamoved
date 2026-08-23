@@ -332,7 +332,11 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand-block">
-          <img className="kamoved-logo" src="/brand/favicon-192.png" alt="kamoved logo"/>
+          <img
+            className="kamoved-logo"
+            src={import.meta.env.DEV ? '/brand/favicon-local.svg' : '/brand/favicon-192.png'}
+            alt="Логотип Камоведа"
+          />
           <div>
             <h1>Камовед</h1>
             <p>Журнал заказов</p>
