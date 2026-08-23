@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.nullValue;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry"
@@ -49,7 +50,8 @@ class SaleApiIntegrationTest {
                           "unit": "SQUARE_METER",
                           "unitPrice": 2855
                         }
-                      ]
+                      ],
+                      "paymentMethod": "CASH"
                     }
                     """))
             .andExpect(status().isCreated())
@@ -87,6 +89,7 @@ class SaleApiIntegrationTest {
                 .content("""
                     {
                       "items": [{"name": "Кирпич", "quantity": 1, "unitPrice": 100}],
+                      "paymentMethod": "BANK_ACCOUNT",
                       "comment": "  Позвонить перед выдачей  "
                     }
                     """))
@@ -106,6 +109,7 @@ class SaleApiIntegrationTest {
                 .content("""
                     {
                       "items": [{"name": "Песок", "quantity": 1, "unitPrice": 50}],
+                      "paymentMethod": "CARD",
                       "comment": "   "
                     }
                     """))

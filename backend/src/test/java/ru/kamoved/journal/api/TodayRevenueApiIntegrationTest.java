@@ -27,12 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TodayRevenueApiIntegrationTest.FixedClockConfiguration.class)
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry",
     "DELETE FROM app_user WHERE username <> 'admin'"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry",
@@ -51,25 +53,25 @@ class TodayRevenueApiIntegrationTest {
         long adminId = userId("admin");
         long anotherSellerId = createUser("another-seller");
 
-        createEntry(adminId, "SALE", "PAID", "COMPLETED", "100.00", "2026-08-12T21:00:00Z");
-        createEntry(adminId, "SALE", "PAID", "COMPLETED", "250.50", "2026-08-13T20:59:59Z");
+        createEntryWithPayment(adminId, "SALE", "PAID", "COMPLETED", "100.00", "100.00", "2026-08-12T21:00:00Z");
+        createEntryWithPayment(adminId, "SALE", "PAID", "COMPLETED", "250.50", "250.50", "2026-08-13T20:59:59Z");
 
-        createEntry(adminId, "SALE", "PAID", "COMPLETED", "10.00", "2026-08-12T20:59:59Z");
-        createEntry(adminId, "SALE", "PAID", "COMPLETED", "20.00", "2026-08-13T21:00:00Z");
-        createEntry(adminId, "SALE", "UNPAID", "COMPLETED", "30.00", "2026-08-13T10:00:00Z");
-        createEntry(adminId, "SALE", "PAID", "CANCELLED", "40.00", "2026-08-13T11:00:00Z");
-        createEntry(adminId, "ORDER", "PAID", "COMPLETED", "50.00", "2026-08-13T12:00:00Z");
-        createEntry(anotherSellerId, "SALE", "PAID", "COMPLETED", "60.00", "2026-08-13T13:00:00Z");
+        createEntryWithPayment(adminId, "SALE", "PAID", "COMPLETED", "10.00", "10.00", "2026-08-12T20:59:59Z");
+        createEntryWithPayment(adminId, "SALE", "PAID", "COMPLETED", "20.00", "20.00", "2026-08-13T21:00:00Z");
+        createEntryWithPayment(adminId, "ORDER", "PREPAID", "NEW", "100.00", "30.00", "2026-08-13T10:00:00Z");
+        createEntryWithPayment(adminId, "ORDER", "PAID", "CANCELLED", "40.00", "40.00", "2026-08-13T11:00:00Z");
+        createEntryWithPayment(adminId, "ORDER", "PAID", "COMPLETED", "50.00", "50.00", "2026-08-13T12:00:00Z");
+        createEntryWithPayment(anotherSellerId, "SALE", "PAID", "COMPLETED", "60.00", "60.00", "2026-08-13T13:00:00Z");
 
         mockMvc.perform(get("/api/journal?page=0&size=1").with(user("admin")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.items.length()").value(1))
             .andExpect(jsonPath("$.hasNext").value(true))
-            .andExpect(jsonPath("$.todayRevenue").value(410.5));
+            .andExpect(jsonPath("$.todayRevenue").value(530.5));
 
         mockMvc.perform(get("/api/journal?page=0&size=1").with(user("another-seller")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.todayRevenue").value(410.5));
+            .andExpect(jsonPath("$.todayRevenue").value(530.5));
     }
 
     private long userId(String username) {
@@ -88,15 +90,16 @@ class TodayRevenueApiIntegrationTest {
         return userId(username);
     }
 
-    private void createEntry(
+    private void createEntryWithPayment(
         long userId,
         String type,
         String paymentStatus,
         String executionStatus,
         String totalAmount,
-        String createdAt
+        String paymentAmount,
+        String receivedAt
     ) {
-        OffsetDateTime timestamp = OffsetDateTime.ofInstant(Instant.parse(createdAt), ZoneOffset.UTC);
+        OffsetDateTime timestamp = OffsetDateTime.ofInstant(Instant.parse(receivedAt), ZoneOffset.UTC);
         jdbc.update("""
             INSERT INTO journal_entry (
                 type,
@@ -115,6 +118,23 @@ class TodayRevenueApiIntegrationTest {
             new BigDecimal(totalAmount),
             userId,
             timestamp,
+            timestamp
+        );
+        long entryId = jdbc.queryForObject("SELECT MAX(id) FROM journal_entry", Long.class);
+        jdbc.update("""
+            INSERT INTO journal_payment (
+                journal_entry_id,
+                amount,
+                payment_method,
+                received_at,
+                created_by,
+                created_at
+            ) VALUES (?, ?, 'CASH', ?, ?, ?)
+            """,
+            entryId,
+            new BigDecimal(paymentAmount),
+            timestamp,
+            userId,
             timestamp
         );
     }

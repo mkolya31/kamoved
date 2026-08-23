@@ -3,7 +3,9 @@ import type {
   JournalEntryDetails,
   JournalPage,
   OrderInput,
-  PaymentStatus,
+  PaymentDetails,
+  PaymentInput,
+  PaymentMethod,
   SaleItemInput,
   ExecutionStatus,
   User,
@@ -116,10 +118,15 @@ export async function loadJournalEntry(id: number): Promise<JournalEntryDetails>
   return response.json() as Promise<JournalEntryDetails>
 }
 
-export function createSale(items: SaleItemInput[], comment?: string): Promise<JournalEntry> {
+export function createSale(
+  items: SaleItemInput[],
+  paymentMethod: PaymentMethod,
+  paymentComment?: string,
+  comment?: string,
+): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/sales', {
     method: 'POST',
-    body: JSON.stringify({ items, comment }),
+    body: JSON.stringify({ items, paymentMethod, paymentComment, comment }),
   })
 }
 
@@ -148,14 +155,27 @@ export function updateOrderExecutionStatus(
   })
 }
 
-export function updateOrderPayment(
+export function addOrderPayment(
   id: number,
-  paymentStatus: PaymentStatus,
-  paidAmount: number | undefined,
-  version: number,
+  payment: PaymentInput,
 ): Promise<JournalEntry> {
-  return mutate<JournalEntry>(`/api/orders/${id}/payment`, {
-    method: 'PATCH',
-    body: JSON.stringify({ paymentStatus, paidAmount, version }),
+  return mutate<JournalEntry>(`/api/orders/${id}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payment),
+  })
+}
+
+export function correctPayment(
+  payment: PaymentDetails,
+  correction: {
+    amount?: number
+    paymentMethod: PaymentMethod
+    comment?: string
+    reason: string
+  },
+): Promise<JournalEntryDetails> {
+  return mutate<JournalEntryDetails>(`/api/payments/${payment.id}/corrections`, {
+    method: 'POST',
+    body: JSON.stringify(correction),
   })
 }

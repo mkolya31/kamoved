@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import ru.kamoved.journal.application.InvalidOrderException;
+import ru.kamoved.journal.application.InvalidPaymentException;
 import ru.kamoved.journal.application.OrderNotFoundException;
 import ru.kamoved.journal.application.OrderVersionConflictException;
 
@@ -38,6 +39,12 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ApiError handleInvalidOrder(InvalidOrderException exception) {
         return new ApiError("INVALID_ORDER", exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(InvalidPaymentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ApiError handleInvalidPayment(InvalidPaymentException exception) {
+        return new ApiError("INVALID_PAYMENT", exception.getMessage(), Map.of());
     }
 
     @ExceptionHandler(OrderNotFoundException.class)

@@ -1,7 +1,7 @@
 import type {
   ExecutionStatus,
   FulfillmentMethod,
-  PaymentStatus,
+  PaymentMethod,
   UnitOfMeasure,
 } from '../types'
 
@@ -22,8 +22,10 @@ export interface OrderFormState {
   items: OrderFormItemState[]
   client: OrderFormContactState
   additionalContacts: OrderFormContactState[]
-  paymentStatus: PaymentStatus
-  prepaymentAmount: string
+  initialPaymentOpen: boolean
+  paymentAmount: string
+  paymentMethod: PaymentMethod
+  paymentComment: string
   executionStatus: ExecutionStatus
   fulfillmentMethod: FulfillmentMethod | ''
   deliveryAddress: string

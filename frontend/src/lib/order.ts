@@ -12,6 +12,7 @@ export function summaryFromDetails(
     totalAmount: details.totalAmount,
     paymentStatus: details.paymentStatus,
     prepaymentAmount: details.prepaymentAmount,
+    paidAmount: details.paidAmount,
     remainingAmount: details.remainingAmount,
     executionStatus: details.executionStatus,
     clientName: details.client?.name ?? null,

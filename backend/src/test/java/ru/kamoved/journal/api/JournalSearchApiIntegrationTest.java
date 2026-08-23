@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @WithMockUser(username = "admin")
 @Sql(statements = {
+    "DELETE FROM journal_payment",
     "DELETE FROM entry_contact",
     "DELETE FROM journal_entry_item",
     "DELETE FROM journal_entry"
