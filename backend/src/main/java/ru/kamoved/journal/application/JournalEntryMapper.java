@@ -6,10 +6,12 @@ import ru.kamoved.journal.api.dto.JournalEntrySummary;
 import ru.kamoved.journal.api.dto.JournalContactDetails;
 import ru.kamoved.journal.api.dto.JournalItemSummary;
 import ru.kamoved.journal.api.dto.JournalSearchMatch;
+import ru.kamoved.journal.api.dto.PaymentDetails;
 import ru.kamoved.journal.domain.ContactType;
 import ru.kamoved.journal.domain.EntryContact;
 import ru.kamoved.journal.domain.JournalEntry;
 import ru.kamoved.journal.domain.JournalEntryItem;
+import ru.kamoved.journal.domain.JournalPayment;
 import ru.kamoved.journal.domain.PaymentStatus;
 
 import java.math.BigDecimal;
@@ -37,7 +39,8 @@ public class JournalEntryMapper {
             entry.getItems().size(),
             entry.getTotalAmount(),
             entry.getPaymentStatus(),
-            entry.getPrepaymentAmount(),
+            legacyPrepaymentAmount(entry),
+            entry.getPaidAmount(),
             remainingAmount(entry),
             entry.getExecutionStatus(),
             client == null ? null : client.getName(),
@@ -63,6 +66,7 @@ public class JournalEntryMapper {
             summary.totalAmount(),
             summary.paymentStatus(),
             summary.prepaymentAmount(),
+            summary.paidAmount(),
             summary.remainingAmount(),
             summary.executionStatus(),
             summary.clientName(),
@@ -152,8 +156,10 @@ public class JournalEntryMapper {
             entry.getItems().stream().map(this::toItem).toList(),
             entry.getTotalAmount(),
             entry.getPaymentStatus(),
-            entry.getPrepaymentAmount(),
+            legacyPrepaymentAmount(entry),
+            entry.getPaidAmount(),
             remainingAmount(entry),
+            entry.getPayments().stream().map(this::toPayment).toList(),
             entry.getExecutionStatus(),
             client,
             entry.getContacts().stream()
@@ -170,13 +176,30 @@ public class JournalEntryMapper {
     }
 
     private BigDecimal remainingAmount(JournalEntry entry) {
-        if (entry.getPaymentStatus() == PaymentStatus.PAID) {
-            return BigDecimal.ZERO;
-        }
-        if (entry.getPaymentStatus() == PaymentStatus.PREPAID) {
-            return entry.getTotalAmount().subtract(entry.getPrepaymentAmount());
-        }
-        return entry.getTotalAmount();
+        return entry.getTotalAmount().subtract(entry.getPaidAmount());
+    }
+
+    private BigDecimal legacyPrepaymentAmount(JournalEntry entry) {
+        return entry.getPaymentStatus() == PaymentStatus.PREPAID
+            ? entry.getPaidAmount()
+            : null;
+    }
+
+    private PaymentDetails toPayment(JournalPayment payment) {
+        return new PaymentDetails(
+            payment.getId(),
+            payment.getAmount(),
+            payment.getPaymentMethod(),
+            payment.getComment(),
+            payment.getReceivedAt(),
+            payment.getCreatedBy().getDisplayName(),
+            payment.getCreatedAt(),
+            payment.isActive(),
+            payment.getVoidedAt(),
+            payment.getVoidedBy() == null ? null : payment.getVoidedBy().getDisplayName(),
+            payment.getCorrectionOf() == null ? null : payment.getCorrectionOf().getId(),
+            payment.getCorrectionReason()
+        );
     }
 
     private JournalContactDetails toContact(EntryContact contact) {

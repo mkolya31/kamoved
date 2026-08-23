@@ -17,8 +17,8 @@ import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
 import ru.kamoved.journal.domain.JournalEntry;
 import ru.kamoved.journal.domain.JournalEntryItem;
+import ru.kamoved.journal.domain.JournalPayment;
 import ru.kamoved.journal.domain.MoneyCalculator;
-import ru.kamoved.journal.domain.PaymentStatus;
 import ru.kamoved.journal.domain.PhoneNormalizer;
 import ru.kamoved.journal.persistence.JournalEntryRepository;
 
@@ -55,14 +55,21 @@ public class OrderService {
         JournalEntry order = JournalEntry.order(
             creator,
             ExecutionStatus.NEW,
-            PaymentStatus.UNPAID,
-            null,
             null,
             null,
             null
         );
 
         applyOrderData(order, request);
+        if (request.initialPayment() != null) {
+            validatePaymentAmount(request.initialPayment().amount(), order.getTotalAmount());
+            order.addPayment(JournalPayment.received(
+                request.initialPayment().amount(),
+                request.initialPayment().paymentMethod(),
+                trimToNull(request.initialPayment().comment()),
+                creator
+            ));
+        }
         return mapper.toSummary(entries.saveAndFlush(order));
     }
 
@@ -74,9 +81,6 @@ public class OrderService {
     }
 
     private void applyOrderData(JournalEntry order, OrderDataRequest request) {
-        PaymentStatus paymentStatus = request.paymentStatus() == null
-            ? PaymentStatus.UNPAID
-            : request.paymentStatus();
         ExecutionStatus executionStatus = request.executionStatus() == null
             ? ExecutionStatus.NEW
             : request.executionStatus();
@@ -98,12 +102,14 @@ public class OrderService {
 
         BigDecimal totalAmount = moneyCalculator.calculateOrderTotal(
             orderItems.stream().map(JournalEntryItem::getLineTotal).toList());
-        BigDecimal prepaymentAmount = validateAndNormalizePrepayment(
-            paymentStatus, request.prepaymentAmount(), totalAmount);
+        if (totalAmount.compareTo(order.getPaidAmount()) < 0) {
+            throw new InvalidOrderException(
+                "Сумма заказа не может быть меньше уже внесённой суммы"
+            );
+        }
 
         order.replaceItems(orderItems);
         order.setTotalAmount(totalAmount);
-        order.changePayment(paymentStatus, prepaymentAmount);
         order.changeExecutionStatus(executionStatus);
         order.changeFulfillment(request.fulfillmentMethod(), deliveryAddress);
         order.changeComment(trimToNull(request.comment()));
@@ -136,21 +142,6 @@ public class OrderService {
         return mapper.toSummary(entries.saveAndFlush(order));
     }
 
-    @Transactional
-    public JournalEntrySummary updatePayment(
-        long orderId,
-        PaymentStatus paymentStatus,
-        BigDecimal paidAmount,
-        long expectedVersion
-    ) {
-        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
-        BigDecimal prepaymentAmount = validateAndNormalizePrepayment(
-            paymentStatus, paidAmount, order.getTotalAmount());
-
-        order.changePayment(paymentStatus, prepaymentAmount);
-        return mapper.toSummary(entries.saveAndFlush(order));
-    }
-
     private JournalEntry findOrderWithExpectedVersion(long orderId, long expectedVersion) {
         JournalEntry order = entries.findById(orderId).orElseThrow(OrderNotFoundException::new);
         if (order.getType() != EntryType.ORDER) {
@@ -162,30 +153,13 @@ public class OrderService {
         return order;
     }
 
-    private BigDecimal validateAndNormalizePrepayment(
-        PaymentStatus paymentStatus,
-        BigDecimal paidAmount,
-        BigDecimal totalAmount
-    ) {
-        if (paidAmount != null && paidAmount.signum() < 0) {
-            throw new InvalidOrderException("Внесённая сумма не может быть отрицательной");
+    private void validatePaymentAmount(BigDecimal amount, BigDecimal totalAmount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new InvalidPaymentException("Сумма платежа должна быть больше нуля");
         }
-
-        if (paymentStatus == PaymentStatus.PREPAID) {
-            if (paidAmount == null || paidAmount.signum() <= 0) {
-                throw new InvalidOrderException("Для предоплаты укажите внесённую сумму");
-            }
-            if (paidAmount.compareTo(totalAmount) >= 0) {
-                throw new InvalidOrderException("Предоплата должна быть меньше суммы заказа");
-            }
-            return paidAmount;
+        if (amount.compareTo(totalAmount) > 0) {
+            throw new InvalidPaymentException("Сумма платежа не может превышать остаток заказа");
         }
-
-        if (paidAmount != null && paidAmount.signum() > 0) {
-            throw new InvalidOrderException(
-                "Внесённую сумму можно указывать только для статуса «Предоплата»");
-        }
-        return null;
     }
 
     private String validateAndNormalizeAddress(

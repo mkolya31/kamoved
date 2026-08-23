@@ -17,6 +17,7 @@ public record JournalEntrySummary(
     BigDecimal totalAmount,
     PaymentStatus paymentStatus,
     BigDecimal prepaymentAmount,
+    BigDecimal paidAmount,
     BigDecimal remainingAmount,
     ExecutionStatus executionStatus,
     String clientName,

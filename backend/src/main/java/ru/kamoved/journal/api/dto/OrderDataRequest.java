@@ -2,9 +2,6 @@ package ru.kamoved.journal.api.dto;
 
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
-import ru.kamoved.journal.domain.PaymentStatus;
-
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface OrderDataRequest {
@@ -14,10 +11,6 @@ public interface OrderDataRequest {
     ContactRequest client();
 
     List<ContactRequest> additionalContacts();
-
-    PaymentStatus paymentStatus();
-
-    BigDecimal prepaymentAmount();
 
     ExecutionStatus executionStatus();
 

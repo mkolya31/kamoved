@@ -13,6 +13,8 @@ export type ExecutionStatus =
 
 export type PaymentStatus = 'UNPAID' | 'PREPAID' | 'PAID'
 
+export type PaymentMethod = 'CASH' | 'BANK_ACCOUNT' | 'CARD' | 'PERSONAL_TRANSFER'
+
 export type FulfillmentMethod =
   | 'PICKUP_WAREHOUSE'
   | 'PICKUP_FACTORY'
@@ -48,6 +50,7 @@ export interface JournalEntry {
   totalAmount: number
   paymentStatus: PaymentStatus
   prepaymentAmount: number | null
+  paidAmount: number
   remainingAmount: number
   executionStatus: ExecutionStatus
   clientName: string | null
@@ -81,7 +84,9 @@ export interface JournalEntryDetails {
   totalAmount: number
   paymentStatus: PaymentStatus
   prepaymentAmount: number | null
+  paidAmount: number
   remainingAmount: number
+  payments: PaymentDetails[]
   executionStatus: ExecutionStatus
   client: JournalContact | null
   additionalContacts: JournalContact[]
@@ -91,6 +96,21 @@ export interface JournalEntryDetails {
   createdByDisplayName: string
   updatedAt: string
   version: number
+}
+
+export interface PaymentDetails {
+  id: number
+  amount: number
+  paymentMethod: PaymentMethod | null
+  comment: string | null
+  receivedAt: string
+  createdByDisplayName: string
+  createdAt: string
+  active: boolean
+  voidedAt: string | null
+  voidedByDisplayName: string | null
+  correctionOfId: number | null
+  correctionReason: string | null
 }
 
 export interface JournalPage {
@@ -119,11 +139,16 @@ export interface OrderInput {
   items: SaleItemInput[]
   client?: ContactInput
   additionalContacts: ContactInput[]
-  paymentStatus: PaymentStatus
-  prepaymentAmount?: number
+  initialPayment?: PaymentInput
   executionStatus: ExecutionStatus
   fulfillmentMethod?: FulfillmentMethod
   deliveryAddress?: string
+  comment?: string
+}
+
+export interface PaymentInput {
+  amount: number
+  paymentMethod: PaymentMethod
   comment?: string
 }
 

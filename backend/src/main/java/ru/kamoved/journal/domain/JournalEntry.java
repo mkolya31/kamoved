@@ -46,9 +46,6 @@ public class JournalEntry {
     @Column(name = "payment_status", nullable = false, length = 20)
     private PaymentStatus paymentStatus;
 
-    @Column(name = "prepayment_amount", precision = 14, scale = 2)
-    private BigDecimal prepaymentAmount;
-
     @Column(name = "total_amount", nullable = false, precision = 14, scale = 2)
     private BigDecimal totalAmount;
 
@@ -88,13 +85,18 @@ public class JournalEntry {
     @BatchSize(size = 30)
     private List<EntryContact> contacts = new ArrayList<>();
 
+    @OneToMany(mappedBy = "journalEntry", cascade = CascadeType.ALL)
+    @OrderBy("receivedAt ASC, id ASC")
+    @BatchSize(size = 30)
+    private List<JournalPayment> payments = new ArrayList<>();
+
     protected JournalEntry() {
     }
 
     private JournalEntry(AppUser createdBy) {
         this.type = EntryType.SALE;
         this.executionStatus = ExecutionStatus.COMPLETED;
-        this.paymentStatus = PaymentStatus.PAID;
+        this.paymentStatus = PaymentStatus.UNPAID;
         this.totalAmount = BigDecimal.ZERO;
         this.createdBy = createdBy;
     }
@@ -108,8 +110,6 @@ public class JournalEntry {
     public static JournalEntry order(
         AppUser createdBy,
         ExecutionStatus executionStatus,
-        PaymentStatus paymentStatus,
-        BigDecimal prepaymentAmount,
         FulfillmentMethod fulfillmentMethod,
         String deliveryAddress,
         String comment
@@ -117,8 +117,7 @@ public class JournalEntry {
         JournalEntry entry = new JournalEntry(createdBy);
         entry.type = EntryType.ORDER;
         entry.executionStatus = executionStatus;
-        entry.paymentStatus = paymentStatus;
-        entry.prepaymentAmount = prepaymentAmount;
+        entry.paymentStatus = PaymentStatus.UNPAID;
         entry.fulfillmentMethod = fulfillmentMethod;
         entry.deliveryAddress = deliveryAddress;
         entry.comment = comment;
@@ -135,6 +134,12 @@ public class JournalEntry {
         contact.attachTo(this);
     }
 
+    public void addPayment(JournalPayment payment) {
+        payments.add(payment);
+        payment.attachTo(this);
+        recalculatePaymentStatus();
+    }
+
     public void replaceItems(List<JournalEntryItem> newItems) {
         items.clear();
         newItems.forEach(this::addItem);
@@ -147,15 +152,22 @@ public class JournalEntry {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+        recalculatePaymentStatus();
     }
 
     public void changeExecutionStatus(ExecutionStatus executionStatus) {
         this.executionStatus = executionStatus;
     }
 
-    public void changePayment(PaymentStatus paymentStatus, BigDecimal prepaymentAmount) {
-        this.paymentStatus = paymentStatus;
-        this.prepaymentAmount = prepaymentAmount;
+    public void recalculatePaymentStatus() {
+        BigDecimal paidAmount = getPaidAmount();
+        if (paidAmount.signum() == 0) {
+            paymentStatus = PaymentStatus.UNPAID;
+        } else if (paidAmount.compareTo(totalAmount) < 0) {
+            paymentStatus = PaymentStatus.PREPAID;
+        } else {
+            paymentStatus = PaymentStatus.PAID;
+        }
     }
 
     public void changeFulfillment(
@@ -212,10 +224,6 @@ public class JournalEntry {
         return paymentStatus;
     }
 
-    public BigDecimal getPrepaymentAmount() {
-        return prepaymentAmount;
-    }
-
     public BigDecimal getTotalAmount() {
         return totalAmount;
     }
@@ -254,5 +262,16 @@ public class JournalEntry {
 
     public List<EntryContact> getContacts() {
         return Collections.unmodifiableList(contacts);
+    }
+
+    public List<JournalPayment> getPayments() {
+        return Collections.unmodifiableList(payments);
+    }
+
+    public BigDecimal getPaidAmount() {
+        return payments.stream()
+            .filter(JournalPayment::isActive)
+            .map(JournalPayment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
