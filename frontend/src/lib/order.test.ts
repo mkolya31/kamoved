@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { JournalEntry, JournalEntryDetails } from '../types'
-import { summaryFromDetails } from './order'
+import { formatAdditionalItemsCount, summaryFromDetails } from './order'
+
+describe('formatAdditionalItemsCount', () => {
+  it.each([
+    [0, null],
+    [1, null],
+    [2, '+ ещё 1 товар'],
+    [3, '+ ещё 2 товара'],
+    [6, '+ ещё 5 товаров'],
+    [12, '+ ещё 11 товаров'],
+    [23, '+ ещё 22 товара'],
+  ])('formats a total of %s items', (itemsCount, expected) => {
+    expect(formatAdditionalItemsCount(itemsCount)).toBe(expected)
+  })
+})
 
 describe('summaryFromDetails', () => {
   it('updates every journal column affected by full order editing', () => {
