@@ -16,6 +16,7 @@ public record BootstrapUsersProperties(
         String username,
         String password,
         String displayName,
+        String email,
         Boolean active
     ) {
         public boolean effectiveActive() {
