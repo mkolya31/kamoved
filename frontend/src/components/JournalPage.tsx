@@ -26,7 +26,7 @@ import {
   type JournalMode,
 } from '../lib/journalPagination'
 import { formatSearchMatches, isJournalSearchActive } from '../lib/journalSearch'
-import { summaryFromDetails } from '../lib/order'
+import { formatAdditionalItemsCount, summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, PaymentDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { PaymentDialog } from './PaymentDialog'
@@ -492,6 +492,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                     const isOrder = entry.type === 'ORDER'
                     const isExpanded = expanded.has(entry.id)
                     const entryDetails = details.get(entry.id)
+                    const additionalItems = !isExpanded
+                      ? formatAdditionalItemsCount(entry.itemsCount)
+                      : null
                     return (
                       <article className="entry-card" key={entry.id}>
                         <div className="entry-summary">
@@ -515,7 +518,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                               : 'Продажа из наличия'}
                           </span>
                           <span className="entry-product">
-                            <strong>{mainItem?.name ?? 'Без позиции'}</strong>
+                            <strong>
+                              {mainItem?.name ?? 'Без позиции'}
+                              {mainItem && additionalItems ? ` ${additionalItems}` : ''}
+                            </strong>
                             {mainItem && <small>{formatQuantity(mainItem.quantity, mainItem.unit)}</small>}
                             {isOrder && entry.fulfillmentMethod && (
                               <small>
