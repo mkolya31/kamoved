@@ -15,6 +15,16 @@ Kamoved разворачивается отдельным Compose-проекто
 Файл `.env.production` содержит секреты, исключён из Git и не должен попадать в
 репозиторий.
 
+## Email-уведомления
+
+Параметры SMTP Timeweb, пользовательские email, тестовое перенаправление и правила
+работы надёжной очереди описаны в
+[`docs/03-email-notifications.md`](../docs/03-email-notifications.md).
+
+После изменения почтовых секретов пересоздайте backend тем же способом, что и
+после изменения списка пользователей. При `KAMOVED_MAIL_ENABLED=false` отправка
+приостанавливается, но уже поставленные в очередь уведомления сохраняются.
+
 ## Пользователи
 
 Пользователи перечисляются в `.env.production` последовательными индексами:
@@ -23,12 +33,20 @@ Kamoved разворачивается отдельным Compose-проекто
 KAMOVED_USERS_0_USERNAME=admin
 KAMOVED_USERS_0_PASSWORD=длинный-уникальный-пароль
 KAMOVED_USERS_0_DISPLAY_NAME=Николай
+KAMOVED_USERS_0_EMAIL=nikolay@example.com
 KAMOVED_USERS_0_ACTIVE=true
 
 KAMOVED_USERS_1_USERNAME=maksim
 KAMOVED_USERS_1_PASSWORD=другой-длинный-уникальный-пароль
 KAMOVED_USERS_1_DISPLAY_NAME=Максим
+KAMOVED_USERS_1_EMAIL=maksim@example.com
 KAMOVED_USERS_1_ACTIVE=true
+
+KAMOVED_USERS_2_USERNAME=third-user
+KAMOVED_USERS_2_PASSWORD=третий-длинный-уникальный-пароль
+KAMOVED_USERS_2_DISPLAY_NAME=Третий пользователь
+KAMOVED_USERS_2_EMAIL=third-user@example.com
+KAMOVED_USERS_2_ACTIVE=true
 ```
 
 После изменения списка нужно пересоздать backend:
@@ -39,13 +57,14 @@ docker compose --env-file .env.production -f compose.production.yaml \
 ```
 
 При запуске отсутствующие пользователи создаются, а у существующих обновляются
-имя, пароль и признак активности. Пароль повторно хешируется только при его
+имя, email, пароль и признак активности. Email обязателен и должен быть уникален
+без учёта регистра. Пароль повторно хешируется только при его
 изменении. Удаление строки из `.env.production` не удаляет и не отключает уже
 созданного пользователя; для отключения нужно оставить пользователя в списке и
 задать `KAMOVED_USERS_N_ACTIVE=false`.
 
-Старые переменные `KAMOVED_ADMIN_USERNAME`, `KAMOVED_ADMIN_PASSWORD` и
-`KAMOVED_ADMIN_DISPLAY_NAME` продолжают поддерживаться, если список
+Старые переменные `KAMOVED_ADMIN_USERNAME`, `KAMOVED_ADMIN_PASSWORD`,
+`KAMOVED_ADMIN_DISPLAY_NAME` и `KAMOVED_ADMIN_EMAIL` продолжают поддерживаться, если список
 `KAMOVED_USERS_*` не задан.
 
 ## Пользовательские сессии

@@ -30,27 +30,32 @@ class BootstrapUsersServiceIntegrationTest {
     @Test
     void createsUserAndUpdatesPasswordDisplayNameAndActiveFlag() {
         bootstrapUsersService.synchronize(List.of(
-            new ConfiguredUser("seller", "first-password", "Первое имя", true)
+            new ConfiguredUser(
+                "seller", "first-password", "Первое имя", "Seller@Example.Test", true)
         ));
 
         AppUser created = users.findByUsernameIgnoreCase("SELLER").orElseThrow();
         assertThat(created.getDisplayName()).isEqualTo("Первое имя");
+        assertThat(created.getEmail()).isEqualTo("seller@example.test");
         assertThat(created.isActive()).isTrue();
         assertThat(passwordEncoder.matches("first-password", created.getPasswordHash())).isTrue();
 
         bootstrapUsersService.synchronize(List.of(
-            new ConfiguredUser("SELLER", "second-password", "Новое имя", false)
+            new ConfiguredUser(
+                "SELLER", "second-password", "Новое имя", "new-seller@example.test", false)
         ));
 
         AppUser updated = users.findByUsernameIgnoreCase("seller").orElseThrow();
         assertThat(updated.getId()).isEqualTo(created.getId());
         assertThat(updated.getDisplayName()).isEqualTo("Новое имя");
+        assertThat(updated.getEmail()).isEqualTo("new-seller@example.test");
         assertThat(updated.isActive()).isFalse();
         assertThat(passwordEncoder.matches("second-password", updated.getPasswordHash())).isTrue();
         assertThat(users.count()).isEqualTo(3);
 
         bootstrapUsersService.synchronize(List.of(
-            new ConfiguredUser("another", "another-password", "Другой", true)
+            new ConfiguredUser(
+                "another", "another-password", "Другой", "another@example.test", true)
         ));
 
         assertThat(users.findByUsernameIgnoreCase("seller")).isPresent();
@@ -59,12 +64,28 @@ class BootstrapUsersServiceIntegrationTest {
     @Test
     void rejectsDuplicateUsernamesIgnoringCase() {
         List<ConfiguredUser> duplicates = List.of(
-            new ConfiguredUser("seller", "first-password", "Первый", true),
-            new ConfiguredUser("SELLER", "second-password", "Второй", true)
+            new ConfiguredUser(
+                "seller", "first-password", "Первый", "first@example.test", true),
+            new ConfiguredUser(
+                "SELLER", "second-password", "Второй", "second@example.test", true)
         );
 
         assertThatThrownBy(() -> bootstrapUsersService.synchronize(duplicates))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("указан несколько раз");
+    }
+
+    @Test
+    void rejectsDuplicateEmailsIgnoringCase() {
+        List<ConfiguredUser> duplicates = List.of(
+            new ConfiguredUser(
+                "first", "first-password", "Первый", "Shared@Example.Test", true),
+            new ConfiguredUser(
+                "second", "second-password", "Второй", "shared@example.test", true)
+        );
+
+        assertThatThrownBy(() -> bootstrapUsersService.synchronize(duplicates))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Email пользователя Камоведа указан несколько раз");
     }
 }

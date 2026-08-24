@@ -10,6 +10,8 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  mail:
+    host: smtp.timeweb.ru
   session:
     timeout: 7d
     jdbc:
@@ -32,6 +34,8 @@ kamoved:
     - username: admin
       password: test-password
       display-name: Тестовый пользователь
+      email: admin@example.test
     - username: maksim
       password: maxim-test-password
       display-name: Максим
+      email: maksim@example.test

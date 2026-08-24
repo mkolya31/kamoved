@@ -26,6 +26,9 @@ public class AppUser {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
+    @Column(unique = true, length = 320)
+    private String email;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -35,14 +38,21 @@ public class AppUser {
     protected AppUser() {
     }
 
-    public AppUser(String username, String passwordHash, String displayName) {
-        this(username, passwordHash, displayName, true);
+    public AppUser(String username, String passwordHash, String displayName, String email) {
+        this(username, passwordHash, displayName, email, true);
     }
 
-    public AppUser(String username, String passwordHash, String displayName, boolean active) {
+    public AppUser(
+        String username,
+        String passwordHash,
+        String displayName,
+        String email,
+        boolean active
+    ) {
         this.username = username;
         this.passwordHash = passwordHash;
         this.displayName = displayName;
+        this.email = email;
         this.active = active;
         this.createdAt = OffsetDateTime.now();
     }
@@ -50,10 +60,12 @@ public class AppUser {
     public void synchronizeFromConfiguration(
         String passwordHash,
         String displayName,
+        String email,
         boolean active
     ) {
         this.passwordHash = passwordHash;
         this.displayName = displayName;
+        this.email = email;
         this.active = active;
     }
 
@@ -71,6 +83,10 @@ public class AppUser {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public boolean isActive() {
