@@ -2,7 +2,10 @@ package ru.kamoved.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @ConfigurationProperties(prefix = "kamoved")
 public record BootstrapUsersProperties(
@@ -17,10 +20,26 @@ public record BootstrapUsersProperties(
         String password,
         String displayName,
         String email,
-        Boolean active
+        Boolean active,
+        String notifications
     ) {
         public boolean effectiveActive() {
             return active == null || active;
+        }
+
+        public Set<String> notificationTypes() {
+            if (notifications == null || notifications.isBlank()) {
+                return Set.of();
+            }
+
+            Set<String> types = new LinkedHashSet<>();
+            for (String value : notifications.split(",")) {
+                String type = value.trim();
+                if (!type.isEmpty()) {
+                    types.add(type);
+                }
+            }
+            return Collections.unmodifiableSet(types);
         }
     }
 }
