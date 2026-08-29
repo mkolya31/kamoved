@@ -193,7 +193,8 @@ class EmailNotificationIntegrationTest {
             "test-password",
             "Тестовый пользователь",
             email,
-            true
+            true,
+            null
         )));
     }
 

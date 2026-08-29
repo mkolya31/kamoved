@@ -31,7 +31,7 @@ class BootstrapUsersServiceIntegrationTest {
     void createsUserAndUpdatesPasswordDisplayNameAndActiveFlag() {
         bootstrapUsersService.synchronize(List.of(
             new ConfiguredUser(
-                "seller", "first-password", "Первое имя", "Seller@Example.Test", true)
+                "seller", "first-password", "Первое имя", "Seller@Example.Test", true, null)
         ));
 
         AppUser created = users.findByUsernameIgnoreCase("SELLER").orElseThrow();
@@ -42,7 +42,7 @@ class BootstrapUsersServiceIntegrationTest {
 
         bootstrapUsersService.synchronize(List.of(
             new ConfiguredUser(
-                "SELLER", "second-password", "Новое имя", "new-seller@example.test", false)
+                "SELLER", "second-password", "Новое имя", "new-seller@example.test", false, null)
         ));
 
         AppUser updated = users.findByUsernameIgnoreCase("seller").orElseThrow();
@@ -55,7 +55,7 @@ class BootstrapUsersServiceIntegrationTest {
 
         bootstrapUsersService.synchronize(List.of(
             new ConfiguredUser(
-                "another", "another-password", "Другой", "another@example.test", true)
+                "another", "another-password", "Другой", "another@example.test", true, null)
         ));
 
         assertThat(users.findByUsernameIgnoreCase("seller")).isPresent();
@@ -65,9 +65,9 @@ class BootstrapUsersServiceIntegrationTest {
     void rejectsDuplicateUsernamesIgnoringCase() {
         List<ConfiguredUser> duplicates = List.of(
             new ConfiguredUser(
-                "seller", "first-password", "Первый", "first@example.test", true),
+                "seller", "first-password", "Первый", "first@example.test", true, null),
             new ConfiguredUser(
-                "SELLER", "second-password", "Второй", "second@example.test", true)
+                "SELLER", "second-password", "Второй", "second@example.test", true, null)
         );
 
         assertThatThrownBy(() -> bootstrapUsersService.synchronize(duplicates))
@@ -79,9 +79,9 @@ class BootstrapUsersServiceIntegrationTest {
     void rejectsDuplicateEmailsIgnoringCase() {
         List<ConfiguredUser> duplicates = List.of(
             new ConfiguredUser(
-                "first", "first-password", "Первый", "Shared@Example.Test", true),
+                "first", "first-password", "Первый", "Shared@Example.Test", true, null),
             new ConfiguredUser(
-                "second", "second-password", "Второй", "shared@example.test", true)
+                "second", "second-password", "Второй", "shared@example.test", true, null)
         );
 
         assertThatThrownBy(() -> bootstrapUsersService.synchronize(duplicates))
