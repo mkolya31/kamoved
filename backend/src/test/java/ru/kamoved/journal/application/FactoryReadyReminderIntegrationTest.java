@@ -34,6 +34,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "kamoved.users[0].display-name=Тестовый пользователь",
     "kamoved.users[0].email=admin@example.test",
     "kamoved.users[0].notifications=FACTORY_READY",
+    "kamoved.users[1].username=second-subscriber",
+    "kamoved.users[1].password=second-password",
+    "kamoved.users[1].display-name=Второй подписчик",
+    "kamoved.users[1].email=ADMIN@example.test",
+    "kamoved.users[1].notifications=FACTORY_READY",
     "kamoved.factory-ready.scan-delay-ms=3600000"
 })
 @AutoConfigureMockMvc
@@ -90,7 +95,8 @@ class FactoryReadyReminderIntegrationTest {
         assertThat(notifications.count()).isEqualTo(1);
         String notificationKey = notifications.findAll().getFirst().getNotificationKey();
         assertThat(notificationKey)
-            .contains("FACTORY_READY:" + orderId + ":2026-09-03:2026-09-02:admin");
+            .startsWith("FACTORY_READY:" + orderId + ":2026-09-03:2026-09-02:")
+            .doesNotContain("admin");
         assertThat(deliveryGuard.shouldDeliver(notificationKey)).isTrue();
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
