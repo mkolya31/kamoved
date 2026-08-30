@@ -16,6 +16,7 @@ import ru.kamoved.journal.domain.JournalEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.time.LocalDate;
 
 @Repository
 public class JournalSearchRepository {
@@ -36,10 +37,23 @@ public class JournalSearchRepository {
         List<Predicate> predicates = predicates(
             builder, entry, searchQuery, activeOnly, activeStatuses);
         contentQuery.where(predicates.toArray(Predicate[]::new));
-        contentQuery.orderBy(
-            builder.desc(entry.get("createdAt")),
-            builder.desc(entry.get("id"))
-        );
+        if (activeOnly) {
+            var attentionDate = builder.<LocalDate>selectCase()
+                .when(builder.isTrue(entry.get("factoryReadyAttention")),
+                    entry.<LocalDate>get("factoryReadyDate"))
+                .otherwise((LocalDate) null);
+            contentQuery.orderBy(
+                builder.desc(entry.get("factoryReadyAttention")),
+                builder.asc(attentionDate),
+                builder.desc(entry.get("createdAt")),
+                builder.desc(entry.get("id"))
+            );
+        } else {
+            contentQuery.orderBy(
+                builder.desc(entry.get("createdAt")),
+                builder.desc(entry.get("id"))
+            );
+        }
 
         TypedQuery<JournalEntry> pageQuery = entityManager.createQuery(contentQuery);
         pageQuery.setFirstResult(page * size);

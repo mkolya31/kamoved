@@ -22,6 +22,7 @@ import ru.kamoved.auth.domain.AppUser;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,6 +58,18 @@ public class JournalEntry {
     private String deliveryAddress;
 
     private String comment;
+
+    @Column(name = "factory_ready_date")
+    private LocalDate factoryReadyDate;
+
+    @Column(name = "factory_ready_attention", nullable = false)
+    private boolean factoryReadyAttention;
+
+    @Column(name = "factory_ready_confirmed_date")
+    private LocalDate factoryReadyConfirmedDate;
+
+    @Column(name = "factory_ready_reminder_start_date")
+    private LocalDate factoryReadyReminderStartDate;
 
     @Column(name = "search_text", nullable = false, columnDefinition = "text")
     private String searchText = "";
@@ -155,8 +168,51 @@ public class JournalEntry {
         recalculatePaymentStatus();
     }
 
-    public void changeExecutionStatus(ExecutionStatus executionStatus) {
+    public void changeExecutionStatus(ExecutionStatus executionStatus, LocalDate today) {
         this.executionStatus = executionStatus;
+        if (!supportsFactoryReadyAttention()) {
+            factoryReadyAttention = false;
+        } else {
+            activateFactoryReadyAttentionIfDue(today);
+        }
+    }
+
+    public void changeFactoryReadyDate(LocalDate date, LocalDate today) {
+        if (java.util.Objects.equals(factoryReadyDate, date)) {
+            return;
+        }
+        factoryReadyDate = date;
+        factoryReadyConfirmedDate = null;
+        factoryReadyAttention = false;
+        factoryReadyReminderStartDate = date == null ? null : date.minusDays(2);
+        if (date != null && !date.isAfter(today.plusDays(2)) && supportsFactoryReadyAttention()) {
+            factoryReadyAttention = true;
+            factoryReadyReminderStartDate = today.plusDays(1);
+        }
+    }
+
+    public void activateFactoryReadyAttentionIfDue(LocalDate today) {
+        if (factoryReadyDate != null
+            && !factoryReadyDate.isAfter(today.plusDays(2))
+            && !factoryReadyDate.equals(factoryReadyConfirmedDate)
+            && supportsFactoryReadyAttention()) {
+            factoryReadyAttention = true;
+        }
+    }
+
+    public void confirmFactoryReadyDate() {
+        factoryReadyConfirmedDate = factoryReadyDate;
+        factoryReadyAttention = false;
+    }
+
+    public void markFactoryReady(LocalDate today) {
+        changeExecutionStatus(ExecutionStatus.READY_FACTORY, today);
+    }
+
+    private boolean supportsFactoryReadyAttention() {
+        return type == EntryType.ORDER && (executionStatus == ExecutionStatus.NEW
+            || executionStatus == ExecutionStatus.ORDERED_FACTORY
+            || executionStatus == ExecutionStatus.IN_PRODUCTION);
     }
 
     public void recalculatePaymentStatus() {
@@ -239,6 +295,14 @@ public class JournalEntry {
     public String getComment() {
         return comment;
     }
+
+    public LocalDate getFactoryReadyDate() { return factoryReadyDate; }
+
+    public boolean isFactoryReadyAttention() { return factoryReadyAttention; }
+
+    public LocalDate getFactoryReadyConfirmedDate() { return factoryReadyConfirmedDate; }
+
+    public LocalDate getFactoryReadyReminderStartDate() { return factoryReadyReminderStartDate; }
 
     public AppUser getCreatedBy() {
         return createdBy;

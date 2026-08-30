@@ -3,6 +3,7 @@ package ru.kamoved.journal.api.dto;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
 import java.util.List;
+import java.time.LocalDate;
 
 public interface OrderDataRequest {
 
@@ -19,4 +20,6 @@ public interface OrderDataRequest {
     String deliveryAddress();
 
     String comment();
+
+    LocalDate factoryReadyDate();
 }

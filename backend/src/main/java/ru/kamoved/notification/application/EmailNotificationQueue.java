@@ -68,6 +68,11 @@ public class EmailNotificationQueue {
     }
 
     @Transactional
+    public void markCancelled(long id, OffsetDateTime now) {
+        findForUpdate(id).cancel(now);
+    }
+
+    @Transactional
     public void scheduleRetry(
         ClaimedEmailNotification notification,
         Exception exception,

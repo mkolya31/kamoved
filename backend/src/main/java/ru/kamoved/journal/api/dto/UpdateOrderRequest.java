@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
 import java.util.List;
+import java.time.LocalDate;
 
 public record UpdateOrderRequest(
     @NotEmpty
@@ -30,6 +31,8 @@ public record UpdateOrderRequest(
 
     @Size(max = 5000)
     String comment,
+
+    LocalDate factoryReadyDate,
 
     @NotNull
     @PositiveOrZero

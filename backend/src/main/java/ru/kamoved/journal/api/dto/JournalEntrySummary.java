@@ -8,6 +8,7 @@ import ru.kamoved.journal.domain.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.time.LocalDate;
 public record JournalEntrySummary(
     Long id,
     EntryType type,
@@ -24,6 +25,8 @@ public record JournalEntrySummary(
     String clientPhone,
     FulfillmentMethod fulfillmentMethod,
     String deliveryAddress,
+    LocalDate factoryReadyDate,
+    boolean factoryReadyAttention,
     long version,
     List<JournalSearchMatch> matches
 ) {

@@ -15,6 +15,8 @@ import ru.kamoved.journal.api.dto.JournalEntryDetails;
 import ru.kamoved.journal.api.dto.JournalEntrySummary;
 import ru.kamoved.journal.api.dto.UpdateOrderRequest;
 import ru.kamoved.journal.api.dto.UpdateOrderStatusRequest;
+import ru.kamoved.journal.api.dto.FactoryReadyActionRequest;
+import ru.kamoved.journal.api.dto.PostponeFactoryReadyRequest;
 import ru.kamoved.journal.application.OrderService;
 
 @RestController
@@ -54,6 +56,31 @@ public class OrderController {
             request.executionStatus(),
             request.version()
         );
+    }
+
+    @PatchMapping("/{id}/factory-ready/ready")
+    JournalEntrySummary markFactoryReady(
+        @PathVariable long id,
+        @Valid @RequestBody FactoryReadyActionRequest request
+    ) {
+        return orderService.markFactoryReady(id, request.version());
+    }
+
+    @PatchMapping("/{id}/factory-ready/confirm")
+    JournalEntrySummary confirmFactoryReady(
+        @PathVariable long id,
+        @Valid @RequestBody FactoryReadyActionRequest request
+    ) {
+        return orderService.confirmFactoryReady(id, request.version());
+    }
+
+    @PatchMapping("/{id}/factory-ready/postpone")
+    JournalEntrySummary postponeFactoryReady(
+        @PathVariable long id,
+        @Valid @RequestBody PostponeFactoryReadyRequest request
+    ) {
+        return orderService.postponeFactoryReady(
+            id, request.factoryReadyDate(), request.version());
     }
 
 }
