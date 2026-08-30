@@ -141,7 +141,7 @@ docker compose --env-file .env.production -f compose.production.yaml logs --tail
 Workflow `.github/workflows/deploy-production.yml` запускается при каждом push в
 ветку `production`, в том числе после слияния pull request. GitHub Actions
 подключается к VPS отдельным SSH-ключом, который может запустить только
-`/opt/kamoved-deploy.sh`.
+`/opt/kamoved-deploy/deploy.sh`.
 
 Серверный скрипт последовательно:
 
@@ -154,15 +154,25 @@ Workflow `.github/workflows/deploy-production.yml` запускается при
 приватным ключом, созданным специально для Камоведа. Публичные адрес, порт,
 пользователь и закреплённый SSH host key VPS находятся в workflow. Файл
 `deploy/kamoved-deploy.sh` хранит эталон серверного скрипта; исполняемая копия
-находится вне рабочей директории репозитория, чтобы deploy-ключ не мог изменить
-команду, которую ему разрешено запускать.
+находится в root-owned каталоге `/opt/kamoved-deploy`, вне рабочей директории
+репозитория, чтобы deploy-ключ не мог изменить команду, которую ему разрешено
+запускать.
 
 После изменения эталона исполняемую копию на VPS нужно обновить вручную:
 
 ```sh
+sudo install -d -o root -g root -m 0755 /opt/kamoved-deploy
 sudo install -o root -g root -m 0755 \
-  /opt/kamoved/deploy/kamoved-deploy.sh /opt/kamoved-deploy.sh
+  /opt/kamoved/deploy/kamoved-deploy.sh /opt/kamoved-deploy/deploy.sh
 ```
+
+## Проверка перед merge в production
+
+Pull request в `production` проверяется на VPS до merge: выполняются backend- и
+frontend-тесты, production-сборка и изолированный запуск на чистой временной БД с
+настоящим `.env.production`. Настройка отдельного SSH-ключа, серверного скрипта и
+обязательного GitHub status check описана в
+[`docs/05-production-preflight.md`](../docs/05-production-preflight.md).
 
 ## Остановка
 
