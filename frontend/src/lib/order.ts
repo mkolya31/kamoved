@@ -36,6 +36,8 @@ export function summaryFromDetails(
     clientPhone: details.client?.phone ?? null,
     fulfillmentMethod: details.fulfillmentMethod,
     deliveryAddress: details.deliveryAddress,
+    factoryReadyDate: details.factoryReadyDate,
+    factoryReadyAttention: details.factoryReadyAttention,
     version: details.version,
   }
 }

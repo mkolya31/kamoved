@@ -9,6 +9,7 @@ import ru.kamoved.notification.config.NotificationProperties;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.List;
 
 @Service
 public class EmailNotificationDispatcher {
@@ -19,17 +20,20 @@ public class EmailNotificationDispatcher {
     private final EmailNotificationSender sender;
     private final NotificationProperties properties;
     private final Clock clock;
+    private final List<EmailNotificationDeliveryGuard> deliveryGuards;
 
     public EmailNotificationDispatcher(
         EmailNotificationQueue queue,
         EmailNotificationSender sender,
         NotificationProperties properties,
-        Clock clock
+        Clock clock,
+        List<EmailNotificationDeliveryGuard> deliveryGuards
     ) {
         this.queue = queue;
         this.sender = sender;
         this.properties = properties;
         this.clock = clock;
+        this.deliveryGuards = deliveryGuards;
     }
 
     @Scheduled(
@@ -55,6 +59,11 @@ public class EmailNotificationDispatcher {
 
             ClaimedEmailNotification notification = claimed.orElseThrow();
             try {
+                if (!shouldDeliver(notification.notificationKey())) {
+                    queue.markCancelled(notification.id(), OffsetDateTime.now(clock));
+                    processed++;
+                    continue;
+                }
                 sender.send(notification);
                 queue.markSent(notification.id(), OffsetDateTime.now(clock));
             } catch (Exception exception) {
@@ -69,5 +78,11 @@ public class EmailNotificationDispatcher {
             processed++;
         }
         return processed;
+    }
+
+    private boolean shouldDeliver(String notificationKey) {
+        return deliveryGuards.stream()
+            .filter(guard -> guard.supports(notificationKey))
+            .allMatch(guard -> guard.shouldDeliver(notificationKey));
     }
 }

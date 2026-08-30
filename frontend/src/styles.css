@@ -538,8 +538,47 @@ input::placeholder {
   background: var(--paper);
 }
 
+.entry-card {
+  display: flow-root;
+}
+
+.entry-card:hover {
+  background: #faf7f2;
+}
+
 .entry-card + .entry-card {
   border-top: 1px solid var(--line);
+}
+
+.entry-card-attention {
+  box-shadow: inset 4px 0 #d98216;
+}
+
+.factory-ready-alert {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 18px 14px 126px;
+  padding: 0;
+  border: 0;
+  color: #8a4d00;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.factory-ready-alert strong {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #d98216;
 }
 
 .search-match {
@@ -564,10 +603,6 @@ input::placeholder {
   padding: 15px 18px;
   background: transparent;
   text-align: left;
-}
-
-.entry-summary:hover {
-  background: #faf7f2;
 }
 
 .entry-summary-toggle {
@@ -834,6 +869,66 @@ input::placeholder {
   justify-content: flex-end;
   padding-top: 16px;
   border-top: 1px solid #ded6cc;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.factory-state-button {
+  border-color: currentColor;
+}
+
+.factory-state-ready {
+  color: #176845;
+  border-color: #a9d8c4;
+  background: var(--green-soft);
+}
+
+.factory-state-ready:hover:not(:disabled) {
+  border-color: #7fc3a5;
+  background: #d5eee1;
+}
+
+.factory-state-on-time {
+  color: #2b5f9e;
+  border-color: #b8cfe9;
+  background: var(--blue-soft);
+}
+
+.factory-state-on-time:hover:not(:disabled) {
+  border-color: #91b4dc;
+  background: #dceafb;
+}
+
+.factory-state-delayed {
+  color: #914c45;
+  border-color: #e5bdb8;
+  background: #f8ecea;
+}
+
+.factory-state-delayed:hover:not(:disabled) {
+  border-color: #d99f98;
+  background: #f3ddda;
+}
+
+.factory-ready-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 20px 60px rgba(50, 35, 20, 0.3);
+}
+
+.factory-ready-dialog label {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.factory-ready-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
 }
 
 .order-details-meta section,
@@ -1554,6 +1649,10 @@ input::placeholder {
   }
 
   .search-match {
+    margin: -2px 14px 14px 86px;
+  }
+
+  .factory-ready-alert {
     margin: -2px 14px 14px 86px;
   }
 

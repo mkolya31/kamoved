@@ -155,6 +155,28 @@ export function updateOrderExecutionStatus(
   })
 }
 
+export function markOrderFactoryReady(id: number, version: number): Promise<JournalEntry> {
+  return mutate<JournalEntry>(`/api/orders/${id}/factory-ready/ready`, {
+    method: 'PATCH', body: JSON.stringify({version}),
+  })
+}
+
+export function confirmOrderFactoryReady(id: number, version: number): Promise<JournalEntry> {
+  return mutate<JournalEntry>(`/api/orders/${id}/factory-ready/confirm`, {
+    method: 'PATCH', body: JSON.stringify({version}),
+  })
+}
+
+export function postponeOrderFactoryReady(
+  id: number,
+  factoryReadyDate: string,
+  version: number,
+): Promise<JournalEntry> {
+  return mutate<JournalEntry>(`/api/orders/${id}/factory-ready/postpone`, {
+    method: 'PATCH', body: JSON.stringify({factoryReadyDate, version}),
+  })
+}
+
 export function addOrderPayment(
   id: number,
   payment: PaymentInput,

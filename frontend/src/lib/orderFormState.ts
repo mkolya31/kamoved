@@ -30,6 +30,7 @@ export interface OrderFormState {
   fulfillmentMethod: FulfillmentMethod | ''
   deliveryAddress: string
   comment: string
+  factoryReadyDate?: string
 }
 
 export function serializeOrderFormState(state: OrderFormState): string {

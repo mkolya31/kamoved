@@ -17,6 +17,14 @@ import {
 } from '../lib/format'
 import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
 import { formatPhone } from '../lib/phone'
+import {
+  currentMoscowDate,
+  displayFactoryReadyDate,
+  emptyFactoryReadyDate,
+  isEmptyFactoryReadyDate,
+  parseFactoryReadyDate,
+} from '../lib/factoryReadyDate'
+import { FactoryReadyDateInput } from './FactoryReadyDateInput'
 import type {
   ContactInput,
   ExecutionStatus,
@@ -162,6 +170,9 @@ export function OrderDialog(props: OrderDialogProps) {
   )
   const [deliveryAddress, setDeliveryAddress] = useState(order?.deliveryAddress ?? '')
   const [comment, setComment] = useState(order?.comment ?? '')
+  const [factoryReadyDate, setFactoryReadyDate] = useState(
+    displayFactoryReadyDate(order?.factoryReadyDate ?? null) || emptyFactoryReadyDate(),
+  )
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
@@ -198,6 +209,7 @@ export function OrderDialog(props: OrderDialogProps) {
     fulfillmentMethod,
     deliveryAddress,
     comment,
+    factoryReadyDate,
   }
   const snapshot = serializeOrderFormState(formState)
   if (initialSnapshotRef.current === null) {
@@ -320,6 +332,22 @@ export function OrderDialog(props: OrderDialogProps) {
       return
     }
 
+
+    const parsedFactoryReadyDate = !isEmptyFactoryReadyDate(factoryReadyDate)
+      ? parseFactoryReadyDate(factoryReadyDate)
+      : undefined
+    if (!isEmptyFactoryReadyDate(factoryReadyDate) && !parsedFactoryReadyDate) {
+      setError('Укажите существующую дату готовности в формате ДД.ММ.ГГГГ')
+      return
+    }
+    if (parsedFactoryReadyDate) {
+      const todayMoscow = currentMoscowDate()
+      if (parsedFactoryReadyDate < todayMoscow) {
+        setError('Дата готовности на заводе не может быть в прошлом')
+        return
+      }
+    }
+
     const payload: OrderInput = {
       items: payloadItems,
       client: contactPayload(client),
@@ -331,6 +359,7 @@ export function OrderDialog(props: OrderDialogProps) {
       fulfillmentMethod: fulfillmentMethod || undefined,
       deliveryAddress: isDeliveryMethod(fulfillmentMethod) ? deliveryAddress.trim() : undefined,
       comment: comment.trim() || undefined,
+      factoryReadyDate: parsedFactoryReadyDate,
     }
 
     setSubmitting(true)
@@ -657,6 +686,19 @@ export function OrderDialog(props: OrderDialogProps) {
               <h3>Состояние заказа</h3>
             </header>
             <div className="order-settings-groups">
+
+              <div className="order-settings-group">
+                <label className="order-settings-primary-field">
+                  <span className="field-label">
+                    Дата готовности на заводе <small>необязательно</small>
+                  </span>
+                  <FactoryReadyDateInput
+                    value={factoryReadyDate}
+                    onChange={setFactoryReadyDate}
+                    ariaLabel="Дата готовности на заводе в формате ДД.ММ.ГГГГ"
+                  />
+                </label>
+              </div>
 
               <div className="order-settings-group">
                 <label className="order-settings-primary-field">

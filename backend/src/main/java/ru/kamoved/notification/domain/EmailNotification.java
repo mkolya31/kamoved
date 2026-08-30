@@ -145,6 +145,14 @@ public class EmailNotification {
         updatedAt = now;
     }
 
+    public void cancel(OffsetDateTime now) {
+        requireProcessing();
+        status = EmailNotificationStatus.CANCELLED;
+        processingStartedAt = null;
+        lastError = null;
+        updatedAt = now;
+    }
+
     private void requireProcessing() {
         if (status != EmailNotificationStatus.PROCESSING) {
             throw new IllegalStateException("Уведомление не находится в процессе отправки");
