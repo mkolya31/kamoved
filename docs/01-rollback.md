@@ -47,6 +47,6 @@ docker compose --env-file .env.production -f compose.production.yaml \
   что она совместима с уже применёнными миграциями.
 - Репозиторий останется в состоянии detached HEAD. Это нормально для временного
   ручного отката.
-- `/opt/kamoved-deploy.sh` и GitHub Actions снова развернут текущую ветку
+- `/opt/kamoved-deploy/deploy.sh` и GitHub Actions снова развернут текущую ветку
   `production`. После восстановления сервиса нужно отдельно исправить или
   откатить эту ветку до безопасной версии.
