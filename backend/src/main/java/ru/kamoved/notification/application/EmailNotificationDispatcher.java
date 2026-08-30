@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import ru.kamoved.notification.config.NotificationProperties;
+import ru.kamoved.notification.config.EmailNotificationAvailability;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -19,6 +20,7 @@ public class EmailNotificationDispatcher {
     private final EmailNotificationQueue queue;
     private final EmailNotificationSender sender;
     private final NotificationProperties properties;
+    private final EmailNotificationAvailability availability;
     private final Clock clock;
     private final List<EmailNotificationDeliveryGuard> deliveryGuards;
 
@@ -26,12 +28,14 @@ public class EmailNotificationDispatcher {
         EmailNotificationQueue queue,
         EmailNotificationSender sender,
         NotificationProperties properties,
+        EmailNotificationAvailability availability,
         Clock clock,
         List<EmailNotificationDeliveryGuard> deliveryGuards
     ) {
         this.queue = queue;
         this.sender = sender;
         this.properties = properties;
+        this.availability = availability;
         this.clock = clock;
         this.deliveryGuards = deliveryGuards;
     }
@@ -45,7 +49,7 @@ public class EmailNotificationDispatcher {
     }
 
     public int dispatchBatch() {
-        if (!properties.enabled()) {
+        if (!availability.isAvailable()) {
             return 0;
         }
 

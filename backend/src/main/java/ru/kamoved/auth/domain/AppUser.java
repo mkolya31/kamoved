@@ -26,7 +26,7 @@ public class AppUser {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Column(unique = true, length = 320)
+    @Column(length = 320)
     private String email;
 
     @Column(nullable = false)

@@ -24,11 +24,17 @@ import static org.assertj.core.api.Assertions.assertThat;
     "kamoved.users[1].email=inactive-subscriber@example.test",
     "kamoved.users[1].active=false",
     "kamoved.users[1].notifications=TEST_EVENT",
-    "kamoved.users[2].username=active-without-subscription",
-    "kamoved.users[2].password=another-password",
-    "kamoved.users[2].display-name=Активный без подписки",
-    "kamoved.users[2].email=active-without-subscription@example.test",
-    "kamoved.users[2].active=true"
+    "kamoved.users[2].username=shared-email-subscriber",
+    "kamoved.users[2].password=shared-password",
+    "kamoved.users[2].display-name=Подписчик с общей почтой",
+    "kamoved.users[2].email=ACTIVE-SUBSCRIBER@example.test",
+    "kamoved.users[2].active=true",
+    "kamoved.users[2].notifications=TEST_EVENT",
+    "kamoved.users[3].username=active-without-subscription",
+    "kamoved.users[3].password=another-password",
+    "kamoved.users[3].display-name=Активный без подписки",
+    "kamoved.users[3].email=active-without-subscription@example.test",
+    "kamoved.users[3].active=true"
 })
 @Import(EmailNotificationRecipientsIntegrationTest.NotificationTypesConfiguration.class)
 @Transactional
@@ -46,7 +52,7 @@ class EmailNotificationRecipientsIntegrationTest {
     private EmailNotificationType eventWithoutSubscribers;
 
     @Test
-    void selectsOnlyActiveUsersSubscribedToRequestedType() {
+    void selectsOnlyActiveSubscribedUsersAndDeduplicatesSharedEmail() {
         assertThat(recipients.findActiveRecipients(testEvent))
             .extracting(user -> user.getUsername())
             .containsExactly("active-subscriber");

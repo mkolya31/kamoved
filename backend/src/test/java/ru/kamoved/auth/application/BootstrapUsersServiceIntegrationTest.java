@@ -76,16 +76,31 @@ class BootstrapUsersServiceIntegrationTest {
     }
 
     @Test
-    void rejectsDuplicateEmailsIgnoringCase() {
-        List<ConfiguredUser> duplicates = List.of(
+    void allowsSharedEmailsIgnoringCase() {
+        List<ConfiguredUser> sharedEmailUsers = List.of(
             new ConfiguredUser(
                 "first", "first-password", "Первый", "Shared@Example.Test", true, null),
             new ConfiguredUser(
                 "second", "second-password", "Второй", "shared@example.test", true, null)
         );
 
-        assertThatThrownBy(() -> bootstrapUsersService.synchronize(duplicates))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Email пользователя Камоведа указан несколько раз");
+        bootstrapUsersService.synchronize(sharedEmailUsers);
+
+        assertThat(users.findByUsernameIgnoreCase("first").orElseThrow().getEmail())
+            .isEqualTo("shared@example.test");
+        assertThat(users.findByUsernameIgnoreCase("second").orElseThrow().getEmail())
+            .isEqualTo("shared@example.test");
+    }
+
+    @Test
+    void keepsApplicationUsersAvailableWhenEmailIsInvalid() {
+        bootstrapUsersService.synchronize(List.of(
+            new ConfiguredUser(
+                "seller", "seller-password", "Продавец", "not-an-email", true, null)
+        ));
+
+        AppUser seller = users.findByUsernameIgnoreCase("seller").orElseThrow();
+        assertThat(seller.isActive()).isTrue();
+        assertThat(seller.getEmail()).isNull();
     }
 }
