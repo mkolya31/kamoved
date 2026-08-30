@@ -6,7 +6,9 @@ import ru.kamoved.auth.domain.AppUser;
 import ru.kamoved.auth.persistence.AppUserRepository;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -30,12 +32,19 @@ public class EmailNotificationRecipients {
             return List.of();
         }
 
-        return users.findAllByActiveTrueOrderByIdAsc().stream()
+        Map<String, AppUser> recipientsByEmail = new LinkedHashMap<>();
+        users.findAllByActiveTrueOrderByIdAsc().stream()
             .filter(user -> subscribedUsernames.contains(normalizeUsername(user.getUsername())))
-            .toList();
+            .filter(user -> user.getEmail() != null && !user.getEmail().isBlank())
+            .forEach(user -> recipientsByEmail.putIfAbsent(normalizeEmail(user.getEmail()), user));
+        return List.copyOf(recipientsByEmail.values());
     }
 
     private static String normalizeUsername(String username) {
         return username.toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

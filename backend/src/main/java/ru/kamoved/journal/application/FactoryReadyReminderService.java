@@ -21,6 +21,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Locale;
 
 @Service
 public class FactoryReadyReminderService {
@@ -91,7 +96,7 @@ public class FactoryReadyReminderService {
     ) {
         String key = "%s:%d:%s:%s:%s".formatted(
             FactoryReadyEmailNotificationType.CODE,
-            order.getId(), order.getFactoryReadyDate(), today, recipient.getUsername());
+            order.getId(), order.getFactoryReadyDate(), today, recipientAddressKey(recipient));
         String subject = "Заказ З-%d: проверить готовность на заводе до %s".formatted(
             order.getId(), SHORT_DATE.format(order.getFactoryReadyDate()));
         notifications.enqueue(new EnqueueEmailNotificationCommand(
@@ -224,4 +229,16 @@ public class FactoryReadyReminderService {
     }
 
     private String escape(String value) { return HtmlUtils.htmlEscape(value); }
+
+    private static String recipientAddressKey(AppUser recipient) {
+        String normalizedEmail = recipient.getEmail().trim().toLowerCase(Locale.ROOT);
+        try {
+            return HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(normalizedEmail.getBytes(StandardCharsets.UTF_8))
+            );
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 недоступен", exception);
+        }
+    }
 }
