@@ -25,6 +25,9 @@ import ru.kamoved.journal.persistence.JournalEntryRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Service
 public class OrderService {
@@ -34,19 +37,23 @@ public class OrderService {
     private final MoneyCalculator moneyCalculator;
     private final PhoneNormalizer phoneNormalizer;
     private final JournalEntryMapper mapper;
+    private final Clock clock;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Moscow");
 
     public OrderService(
         AppUserRepository users,
         JournalEntryRepository entries,
         MoneyCalculator moneyCalculator,
         PhoneNormalizer phoneNormalizer,
-        JournalEntryMapper mapper
+        JournalEntryMapper mapper,
+        Clock clock
     ) {
         this.users = users;
         this.entries = entries;
         this.moneyCalculator = moneyCalculator;
         this.phoneNormalizer = phoneNormalizer;
         this.mapper = mapper;
+        this.clock = clock;
     }
 
     @Transactional
@@ -110,7 +117,10 @@ public class OrderService {
 
         order.replaceItems(orderItems);
         order.setTotalAmount(totalAmount);
-        order.changeExecutionStatus(executionStatus);
+        LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        validateFactoryReadyDate(request.factoryReadyDate(), today);
+        order.changeExecutionStatus(executionStatus, today);
+        order.changeFactoryReadyDate(request.factoryReadyDate(), today);
         order.changeFulfillment(request.fulfillmentMethod(), deliveryAddress);
         order.changeComment(trimToNull(request.comment()));
 
@@ -138,8 +148,37 @@ public class OrderService {
     ) {
         JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
 
-        order.changeExecutionStatus(executionStatus);
+        order.changeExecutionStatus(executionStatus, LocalDate.now(clock.withZone(BUSINESS_ZONE)));
         return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntrySummary markFactoryReady(long orderId, long expectedVersion) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
+        order.markFactoryReady(LocalDate.now(clock.withZone(BUSINESS_ZONE)));
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntrySummary confirmFactoryReady(long orderId, long expectedVersion) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
+        order.confirmFactoryReadyDate();
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    @Transactional
+    public JournalEntrySummary postponeFactoryReady(long orderId, LocalDate date, long expectedVersion) {
+        JournalEntry order = findOrderWithExpectedVersion(orderId, expectedVersion);
+        LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        validateFactoryReadyDate(date, today);
+        order.changeFactoryReadyDate(date, today);
+        return mapper.toSummary(entries.saveAndFlush(order));
+    }
+
+    private void validateFactoryReadyDate(LocalDate date, LocalDate today) {
+        if (date != null && date.isBefore(today)) {
+            throw new InvalidOrderException("Дата готовности на заводе не может быть в прошлом");
+        }
     }
 
     private JournalEntry findOrderWithExpectedVersion(long orderId, long expectedVersion) {

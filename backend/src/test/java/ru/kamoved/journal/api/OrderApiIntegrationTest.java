@@ -14,6 +14,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -498,6 +500,56 @@ class OrderApiIntegrationTest {
             .andExpect(jsonPath("$.items[0].name").value("Тестовый товар"))
             .andExpect(jsonPath("$.fulfillmentMethod").isEmpty())
             .andExpect(jsonPath("$.version").value(0));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void storesFactoryReadyDateAndProcessesAttentionActions() throws Exception {
+        LocalDate date = LocalDate.now(ZoneId.of("Europe/Moscow")).plusDays(1);
+        MvcResult createResult = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"additionalContacts\": [], \"factoryReadyDate\": \"%s\""
+                    .formatted(date))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.factoryReadyDate").value(date.toString()))
+            .andExpect(jsonPath("$.factoryReadyAttention").value(true))
+            .andReturn();
+
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsByteArray());
+        long orderId = created.get("id").asLong();
+        long version = created.get("version").asLong();
+
+        mockMvc.perform(patch("/api/orders/{id}/factory-ready/confirm", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\": %d}".formatted(version)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.factoryReadyAttention").value(false))
+            .andExpect(jsonPath("$.factoryReadyDate").value(date.toString()));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void rejectsPastFactoryReadyDateAndClearsAttentionForReadyStatus() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Moscow"));
+        mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"additionalContacts\": [], \"factoryReadyDate\": \"%s\""
+                    .formatted(today.minusDays(1)))))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value(
+                "Дата готовности на заводе не может быть в прошлом"));
+
+        mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder(
+                    "\"additionalContacts\": [], \"executionStatus\": \"READY_FACTORY\", "
+                        + "\"factoryReadyDate\": \"%s\"".formatted(today))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.factoryReadyAttention").value(false));
     }
 
     private String minimalOrder(String additionalFields) {

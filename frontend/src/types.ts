@@ -57,6 +57,8 @@ export interface JournalEntry {
   clientPhone: string | null
   fulfillmentMethod: FulfillmentMethod | null
   deliveryAddress: string | null
+  factoryReadyDate?: string | null
+  factoryReadyAttention?: boolean
   version: number
   matches: JournalSearchMatch[]
 }
@@ -93,6 +95,8 @@ export interface JournalEntryDetails {
   fulfillmentMethod: FulfillmentMethod | null
   deliveryAddress: string | null
   comment: string | null
+  factoryReadyDate?: string | null
+  factoryReadyAttention?: boolean
   createdByDisplayName: string
   updatedAt: string
   version: number
@@ -144,6 +148,7 @@ export interface OrderInput {
   fulfillmentMethod?: FulfillmentMethod
   deliveryAddress?: string
   comment?: string
+  factoryReadyDate?: string
 }
 
 export interface PaymentInput {

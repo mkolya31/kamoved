@@ -1,5 +1,7 @@
 package ru.kamoved.auth.application;
 
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class BootstrapUsersService {
         configuredUsers.forEach(configured -> {
             String username = configured.username().trim();
             String displayName = configured.displayName().trim();
+            String email = normalizeEmail(configured.email());
 
             users.findByUsernameIgnoreCase(username).ifPresentOrElse(existing -> {
                 String passwordHash = passwordEncoder.matches(
@@ -40,6 +43,7 @@ public class BootstrapUsersService {
                 existing.synchronizeFromConfiguration(
                     passwordHash,
                     displayName,
+                    email,
                     configured.effectiveActive()
                 );
                 users.save(existing);
@@ -47,6 +51,7 @@ public class BootstrapUsersService {
                 username,
                 passwordEncoder.encode(configured.password()),
                 displayName,
+                email,
                 configured.effectiveActive()
             )));
         });
@@ -58,6 +63,7 @@ public class BootstrapUsersService {
         }
 
         Set<String> usernames = new HashSet<>();
+        Set<String> emails = new HashSet<>();
         for (ConfiguredUser configured : configuredUsers) {
             if (configured.username() == null || configured.username().isBlank()) {
                 throw new IllegalStateException("Логин пользователя Камоведа не может быть пустым");
@@ -77,12 +83,40 @@ public class BootstrapUsersService {
                 throw new IllegalStateException(
                     "Имя пользователя " + configured.username().trim() + " не может быть длиннее 255 символов");
             }
+            validateEmail(configured.email(), configured.username().trim());
 
             String normalizedUsername = configured.username().trim().toLowerCase(Locale.ROOT);
             if (!usernames.add(normalizedUsername)) {
                 throw new IllegalStateException(
                     "Логин пользователя Камоведа указан несколько раз: " + configured.username().trim());
             }
+            String normalizedEmail = normalizeEmail(configured.email());
+            if (!emails.add(normalizedEmail)) {
+                throw new IllegalStateException(
+                    "Email пользователя Камоведа указан несколько раз: " + normalizedEmail);
+            }
         }
+    }
+
+    private static void validateEmail(String value, String username) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                "Email пользователя " + username + " не может быть пустым");
+        }
+        if (value.trim().length() > 320) {
+            throw new IllegalStateException(
+                "Email пользователя " + username + " не может быть длиннее 320 символов");
+        }
+        try {
+            InternetAddress address = new InternetAddress(value.trim(), true);
+            address.validate();
+        } catch (AddressException exception) {
+            throw new IllegalStateException(
+                "Email пользователя " + username + " имеет некорректный формат", exception);
+        }
+    }
+
+    private static String normalizeEmail(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

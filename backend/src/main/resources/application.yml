@@ -15,6 +15,23 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  mail:
+    host: ${KAMOVED_MAIL_HOST:smtp.timeweb.ru}
+    port: ${KAMOVED_MAIL_PORT:465}
+    username: ${KAMOVED_MAIL_USERNAME:}
+    password: ${KAMOVED_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
+          ssl:
+            enable: ${KAMOVED_MAIL_SSL_ENABLED:true}
+          starttls:
+            enable: ${KAMOVED_MAIL_STARTTLS_ENABLED:false}
   session:
     timeout: 7d
     jdbc:
@@ -38,3 +55,14 @@ kamoved:
     username: ${KAMOVED_ADMIN_USERNAME:admin}
     password: ${KAMOVED_ADMIN_PASSWORD:change-me-local}
     display-name: ${KAMOVED_ADMIN_DISPLAY_NAME:Администратор}
+    email: ${KAMOVED_ADMIN_EMAIL:admin@kamoved.local}
+  notifications:
+    enabled: ${KAMOVED_MAIL_ENABLED:false}
+    from: ${KAMOVED_MAIL_FROM:}
+    from-name: ${KAMOVED_MAIL_FROM_NAME:Камовед}
+    redirect-to: ${KAMOVED_MAIL_REDIRECT_TO:}
+    dispatch-delay-ms: 30000
+    batch-size: 20
+    processing-timeout: 10m
+    initial-retry-delay: 1m
+    max-retry-delay: 6h

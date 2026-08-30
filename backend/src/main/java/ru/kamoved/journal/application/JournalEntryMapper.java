@@ -47,6 +47,8 @@ public class JournalEntryMapper {
             client == null ? null : client.getPhone(),
             entry.getFulfillmentMethod(),
             entry.getDeliveryAddress(),
+            entry.getFactoryReadyDate(),
+            entry.isFactoryReadyAttention(),
             entry.getVersion(),
             List.of()
         );
@@ -73,6 +75,8 @@ public class JournalEntryMapper {
             summary.clientPhone(),
             summary.fulfillmentMethod(),
             summary.deliveryAddress(),
+            summary.factoryReadyDate(),
+            summary.factoryReadyAttention(),
             summary.version(),
             searchMatches(entry, query)
         );
@@ -169,6 +173,8 @@ public class JournalEntryMapper {
             entry.getFulfillmentMethod(),
             entry.getDeliveryAddress(),
             entry.getComment(),
+            entry.getFactoryReadyDate(),
+            entry.isFactoryReadyAttention(),
             entry.getCreatedBy().getDisplayName(),
             entry.getUpdatedAt(),
             entry.getVersion()

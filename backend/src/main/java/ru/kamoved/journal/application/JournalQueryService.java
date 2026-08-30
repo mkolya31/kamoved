@@ -62,7 +62,7 @@ public class JournalQueryService {
     public JournalPageResponse list(String mode, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
         Page<JournalEntry> result = "active".equals(mode)
-            ? entries.findByTypeAndExecutionStatusInOrderByCreatedAtDesc(
+            ? entries.findActiveOrders(
                 EntryType.ORDER, ACTIVE_STATUSES, pageable)
             : entries.findAllByOrderByCreatedAtDesc(pageable);
 

@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record BootstrapAdminProperties(
     String username,
     String password,
-    String displayName
+    String displayName,
+    String email
 ) {
 }
-

@@ -8,6 +8,7 @@ import ru.kamoved.journal.domain.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.time.LocalDate;
 
 public record JournalEntryDetails(
     Long id,
@@ -26,6 +27,8 @@ public record JournalEntryDetails(
     FulfillmentMethod fulfillmentMethod,
     String deliveryAddress,
     String comment,
+    LocalDate factoryReadyDate,
+    boolean factoryReadyAttention,
     String createdByDisplayName,
     OffsetDateTime updatedAt,
     long version

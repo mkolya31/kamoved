@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import ru.kamoved.journal.domain.ExecutionStatus;
 import ru.kamoved.journal.domain.FulfillmentMethod;
 import java.util.List;
+import java.time.LocalDate;
 
 public record CreateOrderRequest(
     @NotEmpty
@@ -29,6 +30,8 @@ public record CreateOrderRequest(
     String deliveryAddress,
 
     @Size(max = 5000)
-    String comment
+    String comment,
+
+    LocalDate factoryReadyDate
 ) implements OrderDataRequest {
 }

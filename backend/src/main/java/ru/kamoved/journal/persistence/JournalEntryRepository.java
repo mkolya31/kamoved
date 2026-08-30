@@ -13,16 +13,26 @@ import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.List;
 
 public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long> {
 
     Page<JournalEntry> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    Page<JournalEntry> findByTypeAndExecutionStatusInOrderByCreatedAtDesc(
-        EntryType type,
-        Collection<ExecutionStatus> statuses,
+    @Query("""
+        select entry from JournalEntry entry
+        where entry.type = :type and entry.executionStatus in :statuses
+        order by entry.factoryReadyAttention desc,
+            case when entry.factoryReadyAttention = true then entry.factoryReadyDate else null end asc,
+            entry.createdAt desc
+        """)
+    Page<JournalEntry> findActiveOrders(
+        @Param("type") EntryType type,
+        @Param("statuses") Collection<ExecutionStatus> statuses,
         Pageable pageable
     );
+
+    List<JournalEntry> findAllByFactoryReadyDateIsNotNull();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select entry from JournalEntry entry where entry.id = :id")

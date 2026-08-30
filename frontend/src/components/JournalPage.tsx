@@ -5,6 +5,9 @@ import {
   loadJournalEntry,
   logout,
   searchJournal,
+  confirmOrderFactoryReady,
+  markOrderFactoryReady,
+  postponeOrderFactoryReady,
   updateOrderExecutionStatus,
 } from '../lib/api'
 import {
@@ -18,6 +21,14 @@ import {
 } from '../lib/format'
 import { formatDate } from '../lib/format'
 import {
+  currentMoscowDate,
+  displayFactoryReadyDate,
+  emptyFactoryReadyDate,
+  isEmptyFactoryReadyDate,
+  parseFactoryReadyDate,
+  shortFactoryReadyDate,
+} from '../lib/factoryReadyDate'
+import {
   appendUniqueEntries,
   groupJournalEntries,
   initialJournalPaginationState,
@@ -26,12 +37,13 @@ import {
   type JournalMode,
 } from '../lib/journalPagination'
 import { formatSearchMatches, isJournalSearchActive } from '../lib/journalSearch'
-import { summaryFromDetails } from '../lib/order'
+import { formatAdditionalItemsCount, summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, PaymentDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { PaymentDialog } from './PaymentDialog'
 import { PaymentCorrectionDialog } from './PaymentCorrectionDialog'
 import { SaleDialog } from './SaleDialog'
+import { FactoryReadyDateInput } from './FactoryReadyDateInput'
 
 interface JournalPageProps {
   user: User
@@ -72,6 +84,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     payment: PaymentDetails
   } | null>(null)
   const [editingOrder, setEditingOrder] = useState<JournalEntryDetails | null>(null)
+  const [postponingOrder, setPostponingOrder] = useState<JournalEntry | null>(null)
+  const [postponedDate, setPostponedDate] = useState('')
+  const [factoryActionPending, setFactoryActionPending] = useState(false)
+  const [postponeError, setPostponeError] = useState('')
   const requestGenerationRef = useRef(0)
   const loadingMoreRef = useRef(false)
   const searchActive = isJournalSearchActive(searchQuery)
@@ -328,11 +344,63 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
     setEditingOrder(null)
   }
 
+  async function runFactoryAction(action: () => Promise<JournalEntry>) {
+    setFactoryActionPending(true)
+    setError('')
+    try {
+      const updated = await action()
+      setDetails((current) => {
+        const existing = current.get(updated.id)
+        if (!existing) return current
+        return new Map(current).set(updated.id, {
+          ...existing,
+          executionStatus: updated.executionStatus,
+          factoryReadyDate: updated.factoryReadyDate,
+          factoryReadyAttention: updated.factoryReadyAttention,
+          version: updated.version,
+        })
+      })
+      setPostponingOrder(null)
+      await refresh()
+    } catch (cause) {
+      const message = cause instanceof ApiError
+        ? cause.message
+        : 'Не удалось обработать готовность заказа'
+      if (postponingOrder) setPostponeError(message)
+      else setError(message)
+      if (cause instanceof ApiError && cause.status === 409) await refresh()
+    } finally {
+      setFactoryActionPending(false)
+    }
+  }
+
+  async function submitPostponedDate() {
+    if (!postponingOrder) return
+    const parsed = isEmptyFactoryReadyDate(postponedDate)
+      ? undefined
+      : parseFactoryReadyDate(postponedDate)
+    if (!parsed) {
+      setPostponeError('Укажите существующую дату в формате ДД.ММ.ГГГГ')
+      return
+    }
+    if (parsed < currentMoscowDate()) {
+      setPostponeError('Дата готовности на заводе не может быть в прошлом')
+      return
+    }
+    await runFactoryAction(() => postponeOrderFactoryReady(
+      postponingOrder.id, parsed, postponingOrder.version,
+    ))
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <div className="brand-block">
-          <img className="kamoved-logo" src="/brand/favicon-192.png" alt="kamoved logo"/>
+          <img
+            className="kamoved-logo"
+            src={import.meta.env.DEV ? '/brand/favicon-local.svg' : '/brand/favicon-192.png'}
+            alt="Логотип Камоведа"
+          />
           <div>
             <h1>Камовед</h1>
             <p>Журнал заказов</p>
@@ -488,8 +556,14 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                     const isOrder = entry.type === 'ORDER'
                     const isExpanded = expanded.has(entry.id)
                     const entryDetails = details.get(entry.id)
+                    const additionalItems = !isExpanded
+                      ? formatAdditionalItemsCount(entry.itemsCount)
+                      : null
                     return (
-                      <article className="entry-card" key={entry.id}>
+                      <article
+                        className={`entry-card${entry.factoryReadyAttention ? ' entry-card-attention' : ''}`}
+                        key={entry.id}
+                      >
                         <div className="entry-summary">
                           <button
                             className="entry-summary-toggle"
@@ -511,7 +585,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                               : 'Продажа из наличия'}
                           </span>
                           <span className="entry-product">
-                            <strong>{mainItem?.name ?? 'Без позиции'}</strong>
+                            <strong>
+                              {mainItem?.name ?? 'Без позиции'}
+                              {mainItem && additionalItems ? ` ${additionalItems}` : ''}
+                            </strong>
                             {mainItem && <small>{formatQuantity(mainItem.quantity, mainItem.unit)}</small>}
                             {isOrder && entry.fulfillmentMethod && (
                               <small>
@@ -578,6 +655,20 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           </span>
                           <span className="chevron" aria-hidden="true">{isExpanded ? '⌃' : '⌄'}</span>
                         </div>
+
+                        {entry.factoryReadyAttention && entry.factoryReadyDate && (
+                          <button
+                            className="factory-ready-alert"
+                            type="button"
+                            onClick={() => void toggleExpanded(entry.id)}
+                            aria-expanded={isExpanded}
+                            aria-label={`${isExpanded ? 'Свернуть' : 'Открыть'} заказ З-${entry.id}: требуется уточнить готовность на заводе`}
+                          >
+                            <strong aria-hidden="true">!</strong>
+                            Нужно уточнить статус на заводе. Должен быть готов к{' '}
+                            {shortFactoryReadyDate(entry.factoryReadyDate)}
+                          </button>
+                        )}
 
                         {searchActive && entry.matches.length > 0 && (
                           <p className="search-match">
@@ -655,11 +746,53 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                         {entryDetails.deliveryAddress && <span>{entryDetails.deliveryAddress}</span>}
                                       </p>
                                     )}
+                                    {entryDetails.factoryReadyDate && (
+                                      <p>
+                                        <strong>Дата готовности на заводе</strong>
+                                        <span>{displayFactoryReadyDate(entryDetails.factoryReadyDate)}</span>
+                                      </p>
+                                    )}
                                     {entryDetails.comment && <p className="order-comment">{entryDetails.comment}</p>}
                                     <small>Создал: {entryDetails.createdByDisplayName}</small>
                                   </section>
                                 </div>
                                 <div className="order-details-actions">
+                                  {entry.factoryReadyAttention && (
+                                    <>
+                                      <button
+                                        className="button factory-state-button factory-state-ready"
+                                        type="button"
+                                        disabled={factoryActionPending}
+                                        onClick={() => void runFactoryAction(
+                                          () => markOrderFactoryReady(entry.id, entry.version),
+                                        )}
+                                      >
+                                        🥳 Уже готов
+                                      </button>
+                                      <button
+                                        className="button factory-state-button factory-state-on-time"
+                                        type="button"
+                                        disabled={factoryActionPending}
+                                        onClick={() => void runFactoryAction(
+                                          () => confirmOrderFactoryReady(entry.id, entry.version),
+                                        )}
+                                      >
+                                        😌 Будет готов в срок
+                                      </button>
+                                      <button
+                                        className="button factory-state-button factory-state-delayed"
+                                        type="button"
+                                        disabled={factoryActionPending}
+                                        onClick={() => {
+                                          setPostponingOrder(entry)
+                                          setPostponedDate(emptyFactoryReadyDate())
+                                          setPostponeError('')
+                                        }}
+                                      >
+                                        😔 Задерживается
+                                      </button>
+                                    </>
+                                  )}
                                   <button
                                     className="button button-quiet"
                                     type="button"
@@ -833,6 +966,38 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
           onClose={() => setEditingOrder(null)}
           onUpdated={handleOrderUpdated}
         />
+      )}
+
+      {postponingOrder && (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="factory-ready-dialog" role="dialog" aria-modal="true">
+            <p className="eyebrow">Заказ З-{postponingOrder.id}</p>
+            <h2>Новая дата готовности</h2>
+            <p>Текущая дата: {displayFactoryReadyDate(postponingOrder.factoryReadyDate)}</p>
+            <label>
+              Новая дата
+              <FactoryReadyDateInput
+                autoFocus
+                value={postponedDate}
+                onChange={setPostponedDate}
+              />
+            </label>
+            {postponeError && <p className="form-error" role="alert">{postponeError}</p>}
+            <div className="factory-ready-dialog-actions">
+              <button className="button button-quiet" type="button" onClick={() => setPostponingOrder(null)}>
+                Отмена
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={factoryActionPending}
+                onClick={() => void submitPostponedDate()}
+              >
+                Сохранить новую дату
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )

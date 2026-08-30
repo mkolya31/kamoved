@@ -76,7 +76,9 @@ public class AuthConfiguration {
                 legacyAdminProperties.username(),
                 legacyAdminProperties.password(),
                 legacyAdminProperties.displayName(),
-                true
+                legacyAdminProperties.email(),
+                true,
+                null
             ))
             : usersProperties.users();
 
