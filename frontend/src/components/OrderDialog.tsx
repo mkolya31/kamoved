@@ -17,6 +17,7 @@ import {
 } from '../lib/format'
 import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
 import { formatPhone } from '../lib/phone'
+import { selectDefaultQuantity } from '../lib/quantityInput'
 import {
   currentMoscowDate,
   displayFactoryReadyDate,
@@ -471,6 +472,7 @@ export function OrderDialog(props: OrderDialogProps) {
                     <input
                       inputMode="decimal"
                       value={item.quantity}
+                      onFocus={(event) => selectDefaultQuantity(event.currentTarget, !isEditing)}
                       onChange={(event) => updateItem(item.key, { quantity: event.target.value })}
                       required
                     />

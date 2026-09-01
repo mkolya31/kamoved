@@ -1,6 +1,7 @@
 import { type FormEvent, useMemo, useState } from 'react'
 import { ApiError, createSale } from '../lib/api'
 import { formatMoney, paymentMethodLabels, unitLabels } from '../lib/format'
+import { selectDefaultQuantity } from '../lib/quantityInput'
 import type { JournalEntry, PaymentMethod, SaleItemInput, UnitOfMeasure } from '../types'
 
 interface SaleDialogProps {
@@ -150,6 +151,7 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
                   <input
                     inputMode="decimal"
                     value={item.quantity}
+                    onFocus={(event) => selectDefaultQuantity(event.currentTarget)}
                     onChange={(event) => updateItem(item.key, { quantity: event.target.value })}
                     required
                   />
