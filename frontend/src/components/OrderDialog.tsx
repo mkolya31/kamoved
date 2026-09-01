@@ -77,6 +77,12 @@ interface DraftContact {
   comment: string
 }
 
+type ValidationErrors = Record<string, string>
+
+function itemFieldKey(itemKey: number, field: 'name' | 'quantity' | 'unitPrice'): string {
+  return `item-${itemKey}-${field}`
+}
+
 let nextItemKey = 1
 let nextContactKey = 1
 
@@ -175,9 +181,17 @@ export function OrderDialog(props: OrderDialogProps) {
     displayFactoryReadyDate(order?.factoryReadyDate ?? null) || emptyFactoryReadyDate(),
   )
   const [error, setError] = useState('')
+  const [validationVisible, setValidationVisible] = useState(false)
+  const [validationScrollRequest, setValidationScrollRequest] = useState({
+    field: '',
+    sequence: 0,
+  })
+  const [footerElevated, setFooterElevated] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const dialogRef = useRef<HTMLElement | null>(null)
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const validationFieldRefs = useRef<Record<string, HTMLElement | null>>({})
   const continueButtonRef = useRef<HTMLButtonElement>(null)
   const discardButtonRef = useRef<HTMLButtonElement>(null)
   const initialSnapshotRef = useRef<string | null>(null)
@@ -190,6 +204,80 @@ export function OrderDialog(props: OrderDialogProps) {
   )
   const hasFullInitialPayment = isDecimal(paymentAmount, 2)
     && parseDecimal(paymentAmount) === total
+
+  function buildValidationErrors(): ValidationErrors {
+    const errors: ValidationErrors = {}
+
+    items.forEach((item) => {
+      if (!item.name.trim()) {
+        errors[itemFieldKey(item.key, 'name')] = 'Укажите название товара'
+      }
+
+      const quantityKey = itemFieldKey(item.key, 'quantity')
+      if (!isDecimal(item.quantity, 3)) {
+        errors[quantityKey] = 'Укажите количество — до 3 знаков после запятой'
+      } else if (parseDecimal(item.quantity) <= 0) {
+        errors[quantityKey] = 'Количество должно быть больше нуля'
+      }
+
+      const priceKey = itemFieldKey(item.key, 'unitPrice')
+      if (!isDecimal(item.unitPrice, 2)) {
+        errors[priceKey] = 'Укажите цену — до 2 знаков после запятой'
+      }
+    })
+
+    if (!client.phone.trim()) {
+      errors['client-phone'] = 'Укажите телефон'
+    }
+
+    if (!isEditing && initialPaymentOpen) {
+      if (!isDecimal(paymentAmount, 2)) {
+        errors['payment-amount'] = 'Укажите сумму платежа'
+      } else {
+        const parsedPaymentAmount = parseDecimal(paymentAmount)
+        if (parsedPaymentAmount <= 0 || parsedPaymentAmount > total) {
+          errors['payment-amount'] = 'Платёж должен быть больше нуля и не превышать сумму заказа'
+        }
+      }
+    }
+
+    const parsedFactoryReadyDate = !isEmptyFactoryReadyDate(factoryReadyDate)
+      ? parseFactoryReadyDate(factoryReadyDate)
+      : undefined
+    if (!isEmptyFactoryReadyDate(factoryReadyDate) && !parsedFactoryReadyDate) {
+      errors['factory-ready-date'] = 'Укажите существующую дату в формате ДД.ММ.ГГГГ'
+    } else if (parsedFactoryReadyDate && parsedFactoryReadyDate < currentMoscowDate()) {
+      errors['factory-ready-date'] = 'Дата готовности на заводе не может быть в прошлом'
+    }
+
+    if (isDeliveryMethod(fulfillmentMethod) && !deliveryAddress.trim()) {
+      errors['delivery-address'] = 'Для доставки укажите адрес'
+    }
+
+    return errors
+  }
+
+  const validationErrors = validationVisible ? buildValidationErrors() : {}
+
+  function validationError(field: string) {
+    const message = validationErrors[field]
+    if (!message) return null
+    return (
+      <span className="field-error" id={`order-error-${field}`} role="alert">
+        {message}
+      </span>
+    )
+  }
+
+  function registerValidationField(field: string, node: HTMLElement | null) {
+    validationFieldRefs.current[field] = node
+  }
+
+  function updateFooterElevation() {
+    const node = scrollAreaRef.current
+    if (!node) return
+    setFooterElevated(node.scrollHeight - node.scrollTop - node.clientHeight > 1)
+  }
 
   const formState: OrderFormState = {
     items: items.map(({ name, quantity, unit, unitPrice }) => ({
@@ -230,6 +318,22 @@ export function OrderDialog(props: OrderDialogProps) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isDirty])
 
+  useEffect(() => {
+    window.addEventListener('resize', updateFooterElevation)
+    return () => window.removeEventListener('resize', updateFooterElevation)
+  }, [])
+
+  useLayoutEffect(() => {
+    updateFooterElevation()
+  })
+
+  useLayoutEffect(() => {
+    if (!validationScrollRequest.field) return
+    validationFieldRefs.current[validationScrollRequest.field]?.scrollIntoView({
+      block: 'center',
+    })
+  }, [validationScrollRequest])
+
   useLayoutEffect(() => {
     if (confirmingClose) {
       // Откладываем фокусировку до следующего кадра: браузер применяет
@@ -240,10 +344,10 @@ export function OrderDialog(props: OrderDialogProps) {
     }
     if (resumedFromConfirmRef.current) {
       resumedFromConfirmRef.current = false
-      const node = dialogRef.current
+      const node = scrollAreaRef.current
       if (node) {
         node.scrollTop = savedScrollTopRef.current
-        node.focus({ preventScroll: true })
+        dialogRef.current?.focus({ preventScroll: true })
       }
     }
   }, [confirmingClose])
@@ -254,7 +358,7 @@ export function OrderDialog(props: OrderDialogProps) {
       onClose()
       return
     }
-    savedScrollTopRef.current = dialogRef.current?.scrollTop ?? 0
+    savedScrollTopRef.current = scrollAreaRef.current?.scrollTop ?? 0
     resumedFromConfirmRef.current = true
     setConfirmingClose(true)
   }
@@ -294,35 +398,27 @@ export function OrderDialog(props: OrderDialogProps) {
     event.preventDefault()
     setError('')
 
+    const nextValidationErrors = buildValidationErrors()
+    setValidationVisible(true)
+    const firstInvalidField = Object.keys(nextValidationErrors)[0]
+    if (firstInvalidField) {
+      setValidationScrollRequest((current) => ({
+        field: firstInvalidField,
+        sequence: current.sequence + 1,
+      }))
+      return
+    }
+
     const payloadItems: SaleItemInput[] = items.map((item) => ({
       name: item.name.trim(),
       quantity: parseDecimal(item.quantity),
       unit: item.unit,
       unitPrice: parseDecimal(item.unitPrice),
     }))
-    const invalidItem = items.some((item) => (
-      !isDecimal(item.quantity, 3) || !isDecimal(item.unitPrice, 2)
-    )) || payloadItems.some((item) => (
-      !item.name || item.quantity <= 0 || item.unitPrice < 0
-      || !Number.isFinite(item.quantity) || !Number.isFinite(item.unitPrice)
-    ))
-
-    if (invalidItem) {
-      setError('Проверьте название, количество (до 3 знаков) и цену (до 2 знаков)')
-      return
-    }
 
     let initialPayment: OrderInput['initialPayment']
     if (!isEditing && initialPaymentOpen) {
-      if (!isDecimal(paymentAmount, 2)) {
-        setError('Укажите сумму платежа')
-        return
-      }
       const parsedPaymentAmount = parseDecimal(paymentAmount)
-      if (parsedPaymentAmount <= 0 || parsedPaymentAmount > total) {
-        setError('Платёж должен быть больше нуля и не превышать сумму заказа')
-        return
-      }
       initialPayment = {
         amount: parsedPaymentAmount,
         paymentMethod,
@@ -330,26 +426,9 @@ export function OrderDialog(props: OrderDialogProps) {
       }
     }
 
-    if (isDeliveryMethod(fulfillmentMethod) && !deliveryAddress.trim()) {
-      setError('Для доставки укажите адрес')
-      return
-    }
-
-
     const parsedFactoryReadyDate = !isEmptyFactoryReadyDate(factoryReadyDate)
       ? parseFactoryReadyDate(factoryReadyDate)
       : undefined
-    if (!isEmptyFactoryReadyDate(factoryReadyDate) && !parsedFactoryReadyDate) {
-      setError('Укажите существующую дату готовности в формате ДД.ММ.ГГГГ')
-      return
-    }
-    if (parsedFactoryReadyDate) {
-      const todayMoscow = currentMoscowDate()
-      if (parsedFactoryReadyDate < todayMoscow) {
-        setError('Дата готовности на заводе не может быть в прошлом')
-        return
-      }
-    }
 
     const payload: OrderInput = {
       items: payloadItems,
@@ -448,7 +527,12 @@ export function OrderDialog(props: OrderDialogProps) {
           </button>
         </header>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
+          <div
+            ref={scrollAreaRef}
+            className="order-dialog-scroll"
+            onScroll={updateFooterElevation}
+          >
           <section className="order-form-section">
             <header>
               <h3>Позиции заказа</h3>
@@ -458,7 +542,10 @@ export function OrderDialog(props: OrderDialogProps) {
               {items.map((item, index) => (
                 <fieldset className="sale-item" key={item.key}>
                   <legend>Позиция {index + 1}</legend>
-                  <label className="field-name">
+                  <label
+                    ref={(node) => registerValidationField(itemFieldKey(item.key, 'name'), node)}
+                    className="field-name"
+                  >
                     Название товара
                     <input
                       value={item.name}
@@ -467,9 +554,14 @@ export function OrderDialog(props: OrderDialogProps) {
                       maxLength={500}
                       required
                       autoFocus={index === 0 && !resumedFromConfirmRef.current}
+                      aria-invalid={Boolean(validationErrors[itemFieldKey(item.key, 'name')])}
+                      aria-describedby={validationErrors[itemFieldKey(item.key, 'name')]
+                        ? `order-error-${itemFieldKey(item.key, 'name')}`
+                        : undefined}
                     />
+                    {validationError(itemFieldKey(item.key, 'name'))}
                   </label>
-                  <label>
+                  <label ref={(node) => registerValidationField(itemFieldKey(item.key, 'quantity'), node)}>
                     Количество
                     <input
                       inputMode="decimal"
@@ -477,7 +569,12 @@ export function OrderDialog(props: OrderDialogProps) {
                       onFocus={(event) => selectDefaultQuantity(event.currentTarget, !isEditing)}
                       onChange={(event) => updateItem(item.key, { quantity: event.target.value })}
                       required
+                      aria-invalid={Boolean(validationErrors[itemFieldKey(item.key, 'quantity')])}
+                      aria-describedby={validationErrors[itemFieldKey(item.key, 'quantity')]
+                        ? `order-error-${itemFieldKey(item.key, 'quantity')}`
+                        : undefined}
                     />
+                    {validationError(itemFieldKey(item.key, 'quantity'))}
                   </label>
                   <label>
                     Единица
@@ -492,7 +589,7 @@ export function OrderDialog(props: OrderDialogProps) {
                       ))}
                     </select>
                   </label>
-                  <label>
+                  <label ref={(node) => registerValidationField(itemFieldKey(item.key, 'unitPrice'), node)}>
                     Цена, ₽
                     <input
                       inputMode="decimal"
@@ -500,7 +597,12 @@ export function OrderDialog(props: OrderDialogProps) {
                       onChange={(event) => updateItem(item.key, { unitPrice: event.target.value })}
                       placeholder="0"
                       required
+                      aria-invalid={Boolean(validationErrors[itemFieldKey(item.key, 'unitPrice')])}
+                      aria-describedby={validationErrors[itemFieldKey(item.key, 'unitPrice')]
+                        ? `order-error-${itemFieldKey(item.key, 'unitPrice')}`
+                        : undefined}
                     />
+                    {validationError(itemFieldKey(item.key, 'unitPrice'))}
                   </label>
                   <div className="line-total">
                     <span>Сумма</span>
@@ -542,7 +644,7 @@ export function OrderDialog(props: OrderDialogProps) {
                   placeholder="Например, Владимир"
                 />
               </label>
-              <label>
+              <label ref={(node) => registerValidationField('client-phone', node)}>
                 Телефон
                 <input
                   value={client.phone}
@@ -551,7 +653,12 @@ export function OrderDialog(props: OrderDialogProps) {
                   inputMode="tel"
                   placeholder="+7 (999) 123-45-67"
                   required
+                  aria-invalid={Boolean(validationErrors['client-phone'])}
+                  aria-describedby={validationErrors['client-phone']
+                    ? 'order-error-client-phone'
+                    : undefined}
                 />
+                {validationError('client-phone')}
               </label>
               <label className="contact-comment">
                 Комментарий к контакту
@@ -648,7 +755,7 @@ export function OrderDialog(props: OrderDialogProps) {
                   >
                     Удалить платёж
                   </button>
-                  <label>
+                  <label ref={(node) => registerValidationField('payment-amount', node)}>
                     Сумма платежа, ₽
                     <input
                       inputMode="decimal"
@@ -656,7 +763,12 @@ export function OrderDialog(props: OrderDialogProps) {
                       onChange={(event) => setPaymentAmount(event.target.value)}
                       placeholder="0"
                       required
+                      aria-invalid={Boolean(validationErrors['payment-amount'])}
+                      aria-describedby={validationErrors['payment-amount']
+                        ? 'order-error-payment-amount'
+                        : undefined}
                     />
+                    {validationError('payment-amount')}
                   </label>
                   <label>
                     Способ оплаты
@@ -705,7 +817,10 @@ export function OrderDialog(props: OrderDialogProps) {
             <div className="order-settings-groups">
 
               <div className="order-settings-group">
-                <label className="order-settings-primary-field">
+                <label
+                  ref={(node) => registerValidationField('factory-ready-date', node)}
+                  className="order-settings-primary-field"
+                >
                   <span className="field-label">
                     Дата готовности на заводе <small>необязательно</small>
                   </span>
@@ -713,7 +828,12 @@ export function OrderDialog(props: OrderDialogProps) {
                     value={factoryReadyDate}
                     onChange={setFactoryReadyDate}
                     ariaLabel="Дата готовности на заводе в формате ДД.ММ.ГГГГ"
+                    ariaInvalid={Boolean(validationErrors['factory-ready-date'])}
+                    ariaDescribedBy={validationErrors['factory-ready-date']
+                      ? 'order-error-factory-ready-date'
+                      : undefined}
                   />
+                  {validationError('factory-ready-date')}
                 </label>
               </div>
 
@@ -750,7 +870,7 @@ export function OrderDialog(props: OrderDialogProps) {
                 </label>
                 {isDeliveryMethod(fulfillmentMethod) && (
                   <div className="order-settings-dependent-fields">
-                    <label>
+                    <label ref={(node) => registerValidationField('delivery-address', node)}>
                       Адрес доставки
                       <input
                         value={deliveryAddress}
@@ -758,7 +878,12 @@ export function OrderDialog(props: OrderDialogProps) {
                         maxLength={2000}
                         placeholder="Населённый пункт, улица, участок или ориентир"
                         required
+                        aria-invalid={Boolean(validationErrors['delivery-address'])}
+                        aria-describedby={validationErrors['delivery-address']
+                          ? 'order-error-delivery-address'
+                          : undefined}
                       />
+                      {validationError('delivery-address')}
                     </label>
                   </div>
                 )}
@@ -778,8 +903,9 @@ export function OrderDialog(props: OrderDialogProps) {
           </section>
 
           {error && <p className="form-error order-form-error" role="alert">{error}</p>}
+          </div>
 
-          <footer className="dialog-footer">
+          <footer className={`dialog-footer${footerElevated ? ' dialog-footer-elevated' : ''}`}>
             <div>
               <span>Итого</span>
               <strong>{formatMoney(total)}</strong>
