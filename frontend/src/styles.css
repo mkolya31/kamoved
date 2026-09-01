@@ -195,6 +195,11 @@ textarea:focus-visible {
   gap: 18px;
 }
 
+.login-field {
+  display: grid;
+  gap: 7px;
+}
+
 .login-form label,
 .sale-item label,
 .sale-payment-fields label,
@@ -231,6 +236,46 @@ textarea {
 
 input::placeholder {
   color: #a49d95;
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-visibility-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.password-visibility-button:hover {
+  color: var(--ink);
+  background: rgba(116, 109, 101, 0.08);
+}
+
+.password-visibility-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .form-error {
