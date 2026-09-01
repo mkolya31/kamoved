@@ -10,6 +10,8 @@ interface FactoryReadyDateInputProps {
   onChange: (value: string) => void
   autoFocus?: boolean
   ariaLabel?: string
+  ariaInvalid?: boolean
+  ariaDescribedBy?: string
 }
 
 const digitPositions = [0, 1, 3, 4, 6, 7, 8, 9]
@@ -19,6 +21,8 @@ export function FactoryReadyDateInput({
   onChange,
   autoFocus,
   ariaLabel = 'Дата в формате ДД.ММ.ГГГГ',
+  ariaInvalid,
+  ariaDescribedBy,
 }: FactoryReadyDateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -94,6 +98,8 @@ export function FactoryReadyDateInput({
       }}
       maxLength={10}
       aria-label={ariaLabel}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedBy}
       autoFocus={autoFocus}
     />
   )
