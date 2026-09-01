@@ -114,7 +114,28 @@ Do not repeatedly retry stalled browser tests, switch to debug modes, terminate 
 
 Use `<prefix>/<LINEAR-ISSUE>-<short-description>`, where `<prefix>` is one of: `feat`, `fix`, `hotfix`, `build`, `chore`, `ci`, `cd`, `docs`, `style`, `refactor`, `perf`, `test`. Do not use `codex/`.
 
-Create branches from an up-to-date `develop`. Creating, switching, and updating branches is allowed without additional permission.
+Before creating a task branch, update the remote `develop` reference:
+
+```powershell
+git fetch origin develop
+```
+
+Create the branch directly from the updated `origin/develop` without assigning
+`origin/develop` as its upstream:
+
+```powershell
+git switch -c <branch-name> --no-track origin/develop
+```
+
+A task branch must never track `origin/develop`. On the first explicitly
+requested push, create an identically named remote branch and configure it as
+the upstream:
+
+```powershell
+git push --set-upstream origin HEAD
+```
+
+Creating, switching, and updating branches is allowed without additional permission.
 
 Do not commit, push, merge, rebase shared history, or create pull requests unless the user explicitly asks.
 
