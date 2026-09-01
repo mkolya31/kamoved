@@ -188,6 +188,8 @@ export function OrderDialog(props: OrderDialogProps) {
     () => items.reduce((sum, item) => sum + lineTotal(item), 0),
     [items],
   )
+  const hasFullInitialPayment = isDecimal(paymentAmount, 2)
+    && parseDecimal(paymentAmount) === total
 
   const formState: OrderFormState = {
     items: items.map(({ name, quantity, unit, unitPrice }) => ({
@@ -678,6 +680,19 @@ export function OrderDialog(props: OrderDialogProps) {
                       placeholder="Например, аванс наличными"
                     />
                   </label>
+                  {!hasFullInitialPayment && (
+                    <button
+                      className="button button-quiet order-payment-full-amount"
+                      type="button"
+                      disabled={total <= 0}
+                      onClick={() => {
+                        setPaymentAmount(String(total))
+                        setError('')
+                      }}
+                    >
+                      Внести всю сумму — {formatMoney(total)}
+                    </button>
+                  )}
                 </fieldset>
               )}
             </section>

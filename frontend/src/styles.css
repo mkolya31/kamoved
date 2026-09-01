@@ -1275,6 +1275,11 @@ input::placeholder {
   margin: 20px 0 0;
 }
 
+.order-payment-full-amount {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .sale-payment-fields legend {
   padding: 0 5px;
   color: var(--muted);
