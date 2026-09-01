@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
 const baseURL = 'http://127.0.0.1:5173';
+const viteCliPath = fileURLToPath(new URL('./node_modules/vite/bin/vite.js', import.meta.url));
+const viteCommand = `"${process.execPath}" "${viteCliPath}" --host 127.0.0.1`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -23,7 +26,7 @@ export default defineConfig({
   },
 
   webServer: {
-    command: 'pnpm dev',
+    command: viteCommand,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

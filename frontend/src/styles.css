@@ -195,6 +195,11 @@ textarea:focus-visible {
   gap: 18px;
 }
 
+.login-field {
+  display: grid;
+  gap: 7px;
+}
+
 .login-form label,
 .sale-item label,
 .sale-payment-fields label,
@@ -231,6 +236,46 @@ textarea {
 
 input::placeholder {
   color: #a49d95;
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-visibility-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.password-visibility-button:hover {
+  color: var(--ink);
+  background: rgba(116, 109, 101, 0.08);
+}
+
+.password-visibility-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .form-error {
@@ -1092,8 +1137,31 @@ input::placeholder {
   box-shadow: var(--shadow);
 }
 
+.sale-entry-dialog,
+.order-dialog {
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+}
+
 .order-dialog {
   width: min(100%, 1080px);
+}
+
+.sale-entry-dialog > form,
+.order-dialog > form {
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.sale-dialog-scroll,
+.order-dialog-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .payment-dialog {
@@ -1275,6 +1343,11 @@ input::placeholder {
   margin: 20px 0 0;
 }
 
+.order-payment-full-amount {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .sale-payment-fields legend {
   padding: 0 5px;
   color: var(--muted);
@@ -1434,7 +1507,11 @@ input::placeholder {
 }
 
 .order-form-error {
-  margin: 18px 32px 0;
+  margin: 18px 32px 24px;
+}
+
+.order-dialog [aria-invalid='true'] {
+  border-color: #c95c52;
 }
 
 .dialog-header {
@@ -1540,8 +1617,8 @@ input::placeholder {
   font-weight: 700;
 }
 
-.sale-dialog > form > .form-error {
-  margin: 18px 32px 0;
+.sale-dialog-scroll > .form-error {
+  margin: 18px 32px 24px;
 }
 
 .dialog-footer {
@@ -1568,6 +1645,19 @@ input::placeholder {
 .dialog-footer > div strong {
   font-family: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: 23px;
+}
+
+.sale-entry-dialog .dialog-footer,
+.order-dialog .dialog-footer {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: 0;
+  transition: box-shadow 150ms ease;
+}
+
+.sale-entry-dialog .dialog-footer-elevated,
+.order-dialog .dialog-footer-elevated {
+  box-shadow: 0 -10px 18px -16px rgba(41, 34, 28, 0.8);
 }
 
 @media (max-width: 1050px) {

@@ -1,6 +1,7 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, createSale } from '../lib/api'
 import { formatMoney, paymentMethodLabels, unitLabels } from '../lib/format'
+import { selectDefaultQuantity } from '../lib/quantityInput'
 import type { JournalEntry, PaymentMethod, SaleItemInput, UnitOfMeasure } from '../types'
 
 interface SaleDialogProps {
@@ -58,12 +59,29 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
   const [paymentComment, setPaymentComment] = useState('')
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
+  const [footerElevated, setFooterElevated] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + lineTotal(item), 0),
     [items],
   )
+
+  function updateFooterElevation() {
+    const node = scrollAreaRef.current
+    if (!node) return
+    setFooterElevated(node.scrollHeight - node.scrollTop - node.clientHeight > 1)
+  }
+
+  useEffect(() => {
+    window.addEventListener('resize', updateFooterElevation)
+    return () => window.removeEventListener('resize', updateFooterElevation)
+  }, [])
+
+  useLayoutEffect(() => {
+    updateFooterElevation()
+  })
 
   function updateItem(key: number, patch: Partial<DraftItem>) {
     setItems((current) => current.map((item) => (
@@ -112,7 +130,7 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        className="sale-dialog"
+        className="sale-dialog sale-entry-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="sale-dialog-title"
@@ -130,6 +148,11 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
         </header>
 
         <form onSubmit={handleSubmit}>
+          <div
+            ref={scrollAreaRef}
+            className="sale-dialog-scroll"
+            onScroll={updateFooterElevation}
+          >
           <div className="sale-items">
             {items.map((item, index) => (
               <fieldset className="sale-item" key={item.key}>
@@ -150,6 +173,7 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
                   <input
                     inputMode="decimal"
                     value={item.quantity}
+                    onFocus={(event) => selectDefaultQuantity(event.currentTarget)}
                     onChange={(event) => updateItem(item.key, { quantity: event.target.value })}
                     required
                   />
@@ -242,8 +266,9 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
           </label>
 
           {error && <p className="form-error" role="alert">{error}</p>}
+          </div>
 
-          <footer className="dialog-footer">
+          <footer className={`dialog-footer${footerElevated ? ' dialog-footer-elevated' : ''}`}>
             <div>
               <span>Итого</span>
               <strong>{formatMoney(total)}</strong>
