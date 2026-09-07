@@ -64,7 +64,7 @@ public class JournalQueryService {
         Page<JournalEntry> result = "active".equals(mode)
             ? entries.findActiveOrders(
                 EntryType.ORDER, ACTIVE_STATUSES, pageable)
-            : entries.findAllByOrderByCreatedAtDesc(pageable);
+            : entries.findAllByOrderByEntryDateDescCreatedAtDescIdDesc(pageable);
 
         return new JournalPageResponse(
             result.getContent().stream().map(mapper::toSummary).toList(),

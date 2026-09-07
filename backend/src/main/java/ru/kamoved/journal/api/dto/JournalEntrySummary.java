@@ -13,6 +13,7 @@ public record JournalEntrySummary(
     Long id,
     EntryType type,
     OffsetDateTime createdAt,
+    LocalDate entryDate,
     JournalItemSummary mainItem,
     int itemsCount,
     BigDecimal totalAmount,

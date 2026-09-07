@@ -20,6 +20,9 @@ public record CreateSaleRequest(
     String paymentComment,
 
     @Size(max = 5000)
-    String comment
+    String comment,
+
+    boolean backdated,
+    String entryDate
 ) {
 }

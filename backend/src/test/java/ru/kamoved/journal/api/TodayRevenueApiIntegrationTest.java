@@ -109,8 +109,9 @@ class TodayRevenueApiIntegrationTest {
                 created_by,
                 created_at,
                 updated_at,
+                entry_date,
                 version
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
             """,
             type,
             executionStatus,
@@ -118,7 +119,8 @@ class TodayRevenueApiIntegrationTest {
             new BigDecimal(totalAmount),
             userId,
             timestamp,
-            timestamp
+            timestamp,
+            timestamp.atZoneSameInstant(java.time.ZoneId.of("Europe/Moscow")).toLocalDate()
         );
         long entryId = jdbc.queryForObject("SELECT MAX(id) FROM journal_entry", Long.class);
         jdbc.update("""

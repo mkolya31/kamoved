@@ -25,6 +25,8 @@ import {
   isEmptyFactoryReadyDate,
   parseFactoryReadyDate,
 } from '../lib/factoryReadyDate'
+import { EntryDateField } from './EntryDateField'
+import { entryDateError } from '../lib/entryDate'
 import { FactoryReadyDateInput } from './FactoryReadyDateInput'
 import type {
   ContactInput,
@@ -180,6 +182,8 @@ export function OrderDialog(props: OrderDialogProps) {
   const [factoryReadyDate, setFactoryReadyDate] = useState(
     displayFactoryReadyDate(order?.factoryReadyDate ?? null) || emptyFactoryReadyDate(),
   )
+  const [backdated, setBackdated] = useState(false)
+  const [entryDate, setEntryDate] = useState('')
   const [error, setError] = useState('')
   const [validationVisible, setValidationVisible] = useState(false)
   const [validationScrollRequest, setValidationScrollRequest] = useState({
@@ -254,6 +258,11 @@ export function OrderDialog(props: OrderDialogProps) {
       errors['delivery-address'] = 'Для доставки укажите адрес'
     }
 
+    if (!isEditing && backdated) {
+      const dateError = entryDateError(entryDate)
+      if (dateError) errors['entry-date'] = dateError
+    }
+
     return errors
   }
 
@@ -301,6 +310,8 @@ export function OrderDialog(props: OrderDialogProps) {
     deliveryAddress,
     comment,
     factoryReadyDate,
+    backdated,
+    entryDate,
   }
   const snapshot = serializeOrderFormState(formState)
   if (initialSnapshotRef.current === null) {
@@ -452,7 +463,9 @@ export function OrderDialog(props: OrderDialogProps) {
           version: props.order.version,
         }))
       } else {
-        props.onCreated(await createOrder(payload))
+        props.onCreated(await createOrder({
+          ...payload, backdated, entryDate: backdated ? parseFactoryReadyDate(entryDate) : undefined,
+        }))
       }
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Не удалось сохранить заказ')
@@ -901,6 +914,13 @@ export function OrderDialog(props: OrderDialogProps) {
               </label>
             </div>
           </section>
+
+          {!isEditing && (
+            <div ref={(node) => registerValidationField('entry-date', node)}>
+              <EntryDateField type="ORDER" backdated={backdated} date={entryDate}
+                onToggle={setBackdated} onDateChange={setEntryDate} error={validationErrors['entry-date']} />
+            </div>
+          )}
 
           {error && <p className="form-error order-form-error" role="alert">{error}</p>}
           </div>

@@ -1,4 +1,7 @@
 import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { EntryDateField } from './EntryDateField'
+import { entryDateError } from '../lib/entryDate'
+import { parseFactoryReadyDate } from '../lib/factoryReadyDate'
 import { ApiError, createSale } from '../lib/api'
 import { formatMoney, paymentMethodLabels, unitLabels } from '../lib/format'
 import { selectDefaultQuantity } from '../lib/quantityInput'
@@ -58,8 +61,12 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
   const [paymentComment, setPaymentComment] = useState('')
   const [comment, setComment] = useState('')
+  const [backdated, setBackdated] = useState(false)
+  const [entryDate, setEntryDate] = useState('')
   const [error, setError] = useState('')
   const [footerElevated, setFooterElevated] = useState(false)
+  const [dateValidationVisible, setDateValidationVisible] = useState(false)
+  const dateError = backdated && dateValidationVisible ? entryDateError(entryDate) : undefined
   const [submitting, setSubmitting] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
 
@@ -93,6 +100,12 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
     event.preventDefault()
     setError('')
 
+    setDateValidationVisible(true)
+    if (backdated && entryDateError(entryDate)) {
+      scrollAreaRef.current?.querySelector('.entry-date-fields')?.scrollIntoView({ block: 'center' })
+      return
+    }
+
     const payload: SaleItemInput[] = items.map((item) => ({
       name: item.name.trim(),
       quantity: parseDecimal(item.quantity),
@@ -119,6 +132,8 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
         paymentMethod,
         paymentComment.trim() || undefined,
         comment.trim() || undefined,
+        backdated,
+        backdated ? parseFactoryReadyDate(entryDate) : undefined,
       ))
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Не удалось сохранить продажу')
@@ -264,6 +279,9 @@ export function SaleDialog({ onClose, onCreated }: SaleDialogProps) {
               placeholder="Служебная пометка к продаже"
             />
           </label>
+
+          <EntryDateField type="SALE" backdated={backdated} date={entryDate}
+            onToggle={setBackdated} onDateChange={setEntryDate} error={dateError} />
 
           {error && <p className="form-error" role="alert">{error}</p>}
           </div>

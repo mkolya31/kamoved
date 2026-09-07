@@ -1,3 +1,5 @@
+import { currentMoscowDate } from './factoryReadyDate'
+import { yesterdayMoscowDate } from './entryDate'
 import type {
   ExecutionStatus,
   FulfillmentMethod,
@@ -63,30 +65,24 @@ export function formatQuantity(value: number, unit: UnitOfMeasure): string {
 
 export function formatTime(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
 }
 
 export function formatDate(value: string): string {
-  const date = new Date(value)
-  const today = new Date()
-  const yesterday = new Date()
-  yesterday.setDate(today.getDate() - 1)
-
-  const key = date.toDateString()
-  if (key === today.toDateString()) return 'Сегодня'
-  if (key === yesterday.toDateString()) return 'Вчера'
-
+  const key = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : currentMoscowDate(new Date(value))
+  const today = currentMoscowDate()
+  if (key === today) return 'Сегодня'
+  if (key === yesterdayMoscowDate()) return 'Вчера'
+  const date = new Date(`${key}T00:00:00Z`)
   const formattedDate = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'UTC',
     day: 'numeric',
     month: 'long',
-    year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+    year: key.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric',
   }).format(date)
-
-  const weekday = new Intl.DateTimeFormat('ru-RU', {
-    weekday: 'long',
-  }).format(date)
-
+  const weekday = new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date)
   return `${formattedDate} · ${weekday}`
 }

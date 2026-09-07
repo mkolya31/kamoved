@@ -11,6 +11,7 @@ public record PaymentDetails(
     PaymentMethod paymentMethod,
     String comment,
     OffsetDateTime receivedAt,
+    boolean receivedDateOnly,
     String createdByDisplayName,
     OffsetDateTime createdAt,
     boolean active,
