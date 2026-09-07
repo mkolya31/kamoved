@@ -123,14 +123,16 @@ export function createSale(
   paymentMethod: PaymentMethod,
   paymentComment?: string,
   comment?: string,
+  backdated?: boolean,
+  entryDate?: string,
 ): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/sales', {
     method: 'POST',
-    body: JSON.stringify({ items, paymentMethod, paymentComment, comment }),
+    body: JSON.stringify({ items, paymentMethod, paymentComment, comment, backdated, entryDate }),
   })
 }
 
-export function createOrder(order: OrderInput): Promise<JournalEntry> {
+export function createOrder(order: OrderInput & { backdated?: boolean, entryDate?: string }): Promise<JournalEntry> {
   return mutate<JournalEntry>('/api/orders', {
     method: 'POST',
     body: JSON.stringify(order),

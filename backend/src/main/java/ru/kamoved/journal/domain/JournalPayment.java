@@ -37,6 +37,9 @@ public class JournalPayment {
 
     private String comment;
 
+    @Column(name = "received_date_only", nullable = false)
+    private boolean receivedDateOnly;
+
     @Column(name = "received_at", nullable = false)
     private OffsetDateTime receivedAt;
 
@@ -100,6 +103,17 @@ public class JournalPayment {
         );
     }
 
+    public static JournalPayment initial(
+        BigDecimal amount, PaymentMethod method, String comment, AppUser creator,
+        OffsetDateTime receivedAt, boolean dateOnly
+    ) {
+        JournalPayment payment = new JournalPayment(amount, method, comment, receivedAt, creator, null, null);
+        payment.receivedDateOnly = dateOnly;
+        return payment;
+    }
+
+    public boolean isReceivedDateOnly() { return receivedDateOnly; }
+
     public JournalPayment corrected(
         BigDecimal correctedAmount,
         PaymentMethod correctedMethod,
@@ -109,7 +123,7 @@ public class JournalPayment {
     ) {
         voidedAt = OffsetDateTime.now();
         voidedBy = correctedBy;
-        return new JournalPayment(
+        JournalPayment correction = new JournalPayment(
             correctedAmount,
             correctedMethod,
             correctedComment,
@@ -118,6 +132,8 @@ public class JournalPayment {
             this,
             reason
         );
+        correction.receivedDateOnly = receivedDateOnly;
+        return correction;
     }
 
     void attachTo(JournalEntry entry) {

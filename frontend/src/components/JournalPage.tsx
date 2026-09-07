@@ -19,6 +19,7 @@ import {
   paymentLabels,
   paymentMethodLabels,
 } from '../lib/format'
+import { isBackdatedEntry, journalEntryDate } from '../lib/entryDate'
 import { formatDate } from '../lib/format'
 import {
   currentMoscowDate,
@@ -575,8 +576,8 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                           <span className="entry-number">
                             <strong>{isOrder ? 'З' : 'П'}-{entry.id}</strong>
                             <small>{searchActive
-                              ? `${formatDate(entry.createdAt)} · ${formatTime(entry.createdAt)}`
-                              : formatTime(entry.createdAt)}</small>
+                              ? `${formatDate(journalEntryDate(entry))}${isBackdatedEntry(entry) ? '' : ` · ${formatTime(entry.createdAt)}`}`
+                              : isBackdatedEntry(entry) ? '' : formatTime(entry.createdAt)}</small>
                           </span>
                           <span className={`entry-kind ${isOrder ? 'entry-kind-order' : ''}`}>
                             <i aria-hidden="true">●</i>
@@ -841,7 +842,9 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                             : 'Не указано'}</span>
                                         </div>
                                         <small>
-                                          {new Date(payment.receivedAt).toLocaleString('ru-RU')} · {payment.createdByDisplayName}
+                                          {payment.receivedDateOnly
+                                            ? new Date(payment.receivedAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' })
+                                            : new Date(payment.receivedAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })} · {payment.createdByDisplayName}
                                         </small>
                                         {payment.comment && <p>{payment.comment}</p>}
                                         {!payment.active && correction && (
@@ -916,13 +919,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
       {saleOpen && (
         <SaleDialog
           onClose={() => setSaleOpen(false)}
-          onCreated={(sale) => {
+          onCreated={() => {
             setSaleOpen(false)
             setSearchInput('')
             setSearchQuery('')
             changeMode('all')
-            setEntries((current) => [sale, ...current.filter(({ id }) => id !== sale.id)])
-            setTodayRevenue((current) => (current ?? 0) + sale.totalAmount)
+            if (mode === 'all' && !searchActive) void refresh()
             setExpanded(new Set())
           }}
         />
@@ -931,13 +933,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
       {orderOpen && (
         <OrderDialog
           onClose={() => setOrderOpen(false)}
-          onCreated={(order) => {
+          onCreated={() => {
             setOrderOpen(false)
             setSearchInput('')
             setSearchQuery('')
             changeMode('all')
-            setEntries((current) => [order, ...current.filter(({ id }) => id !== order.id)])
-            setTodayRevenue((current) => (current ?? 0) + order.paidAmount)
+            if (mode === 'all' && !searchActive) void refresh()
             setExpanded(new Set())
           }}
         />

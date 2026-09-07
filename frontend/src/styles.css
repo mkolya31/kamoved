@@ -1898,3 +1898,41 @@ input::placeholder {
 .confirm-close-actions .button {
   width: 100%;
 }
+
+.entry-date-fields {
+  display: grid;
+  gap: 12px;
+  padding: 25px 32px;
+}
+
+.entry-date-fields label {
+  color: #4d4741;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.entry-date-fields .entry-date-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.entry-date-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.entry-date-fields .entry-date-input {
+  display: grid;
+  gap: 7px;
+  max-width: 320px;
+}
+
+@media (max-width: 760px) {
+  .entry-date-fields {
+    padding: 22px 20px;
+  }
+}

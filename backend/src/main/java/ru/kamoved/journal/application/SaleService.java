@@ -21,23 +21,28 @@ public class SaleService {
     private final JournalEntryRepository entries;
     private final MoneyCalculator moneyCalculator;
     private final JournalEntryMapper mapper;
+    private final EntryDateService entryDates;
 
     public SaleService(
         AppUserRepository users,
         JournalEntryRepository entries,
         MoneyCalculator moneyCalculator,
+        EntryDateService entryDates,
         JournalEntryMapper mapper
     ) {
         this.users = users;
         this.entries = entries;
         this.moneyCalculator = moneyCalculator;
         this.mapper = mapper;
+        this.entryDates = entryDates;
     }
 
     @Transactional
     public JournalEntrySummary create(CreateSaleRequest request, String username) {
         AppUser creator = users.findByUsernameIgnoreCase(username).orElseThrow();
         JournalEntry sale = JournalEntry.sale(creator, trimToNull(request.comment()));
+
+        entryDates.initialize(sale, request.backdated(), request.entryDate());
 
         request.items().forEach(requestItem -> {
             BigDecimal lineTotal = moneyCalculator.calculateLineTotal(
@@ -59,11 +64,13 @@ public class SaleService {
         if (sale.getTotalAmount().signum() <= 0) {
             throw new InvalidPaymentException("Сумма продажи должна быть больше нуля");
         }
-        sale.addPayment(JournalPayment.received(
+        sale.addPayment(JournalPayment.initial(
             sale.getTotalAmount(),
             request.paymentMethod(),
             trimToNull(request.paymentComment()),
-            creator
+            creator,
+            sale.getInitialPaymentReceivedAt(),
+            request.backdated()
         ));
         sale.refreshSearchText();
 
