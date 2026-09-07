@@ -45,11 +45,13 @@ public class JournalSearchRepository {
             contentQuery.orderBy(
                 builder.desc(entry.get("factoryReadyAttention")),
                 builder.asc(attentionDate),
+                builder.desc(entry.get("entryDate")),
                 builder.desc(entry.get("createdAt")),
                 builder.desc(entry.get("id"))
             );
         } else {
             contentQuery.orderBy(
+                builder.desc(entry.get("entryDate")),
                 builder.desc(entry.get("createdAt")),
                 builder.desc(entry.get("id"))
             );

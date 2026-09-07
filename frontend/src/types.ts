@@ -45,6 +45,7 @@ export interface JournalEntry {
   id: number
   type: EntryType
   createdAt: string
+  entryDate?: string
   mainItem: JournalItem | null
   itemsCount: number
   totalAmount: number
@@ -82,6 +83,7 @@ export interface JournalEntryDetails {
   id: number
   type: EntryType
   createdAt: string
+  entryDate?: string
   items: JournalItem[]
   totalAmount: number
   paymentStatus: PaymentStatus
@@ -108,6 +110,7 @@ export interface PaymentDetails {
   paymentMethod: PaymentMethod | null
   comment: string | null
   receivedAt: string
+  receivedDateOnly?: boolean
   createdByDisplayName: string
   createdAt: string
   active: boolean

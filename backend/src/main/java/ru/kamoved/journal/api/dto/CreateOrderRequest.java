@@ -32,6 +32,9 @@ public record CreateOrderRequest(
     @Size(max = 5000)
     String comment,
 
-    LocalDate factoryReadyDate
+    LocalDate factoryReadyDate,
+
+    boolean backdated,
+    String entryDate
 ) implements OrderDataRequest {
 }

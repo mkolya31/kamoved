@@ -31,6 +31,8 @@ export interface OrderFormState {
   deliveryAddress: string
   comment: string
   factoryReadyDate?: string
+  backdated?: boolean
+  entryDate?: string
 }
 
 export function serializeOrderFormState(state: OrderFormState): string {

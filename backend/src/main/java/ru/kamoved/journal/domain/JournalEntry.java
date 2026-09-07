@@ -23,6 +23,7 @@ import ru.kamoved.auth.domain.AppUser;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.List;
 @Entity
 @Table(name = "journal_entry")
 public class JournalEntry {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Moscow");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -77,6 +80,9 @@ public class JournalEntry {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private AppUser createdBy;
+
+    @Column(name = "entry_date", nullable = false)
+    private LocalDate entryDate;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -242,8 +248,13 @@ public class JournalEntry {
     void onCreate() {
         refreshSearchText();
         OffsetDateTime now = OffsetDateTime.now();
-        createdAt = now;
-        updatedAt = now;
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (entryDate == null) {
+            entryDate = createdAt.atZoneSameInstant(BUSINESS_ZONE).toLocalDate();
+        }
+        updatedAt = createdAt;
     }
 
     @PreUpdate
@@ -306,6 +317,19 @@ public class JournalEntry {
 
     public AppUser getCreatedBy() {
         return createdBy;
+    }
+
+    public void initializeCreation(LocalDate date, OffsetDateTime now) {
+        if (createdAt != null) throw new IllegalStateException("Creation date is immutable");
+        entryDate = date;
+        createdAt = now;
+    }
+
+    public LocalDate getEntryDate() { return entryDate; }
+
+    public OffsetDateTime getInitialPaymentReceivedAt() {
+        return entryDate.equals(createdAt.atZoneSameInstant(BUSINESS_ZONE).toLocalDate())
+            ? createdAt : entryDate.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime();
     }
 
     public OffsetDateTime getCreatedAt() {

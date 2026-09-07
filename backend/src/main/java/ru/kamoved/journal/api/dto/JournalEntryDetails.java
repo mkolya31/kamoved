@@ -14,6 +14,7 @@ public record JournalEntryDetails(
     Long id,
     EntryType type,
     OffsetDateTime createdAt,
+    LocalDate entryDate,
     List<JournalItemSummary> items,
     BigDecimal totalAmount,
     PaymentStatus paymentStatus,

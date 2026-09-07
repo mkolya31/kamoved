@@ -1,4 +1,5 @@
 import type { JournalEntry } from '../types'
+import { journalEntryDate } from './entryDate'
 import { formatDate } from './format'
 
 export type JournalMode = 'all' | 'active'
@@ -102,7 +103,7 @@ export function groupJournalEntries(
   const grouped = new Map<string, JournalEntry[]>()
 
   entries.forEach((entry) => {
-    const key = formatDate(entry.createdAt)
+    const key = formatDate(journalEntryDate(entry))
     grouped.set(key, [...(grouped.get(key) ?? []), entry])
   })
 

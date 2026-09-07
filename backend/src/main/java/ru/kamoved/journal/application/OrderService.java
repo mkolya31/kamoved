@@ -37,6 +37,7 @@ public class OrderService {
     private final MoneyCalculator moneyCalculator;
     private final PhoneNormalizer phoneNormalizer;
     private final JournalEntryMapper mapper;
+    private final EntryDateService entryDates;
     private final Clock clock;
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Moscow");
 
@@ -45,6 +46,7 @@ public class OrderService {
         JournalEntryRepository entries,
         MoneyCalculator moneyCalculator,
         PhoneNormalizer phoneNormalizer,
+        EntryDateService entryDates,
         JournalEntryMapper mapper,
         Clock clock
     ) {
@@ -53,6 +55,7 @@ public class OrderService {
         this.moneyCalculator = moneyCalculator;
         this.phoneNormalizer = phoneNormalizer;
         this.mapper = mapper;
+        this.entryDates = entryDates;
         this.clock = clock;
     }
 
@@ -67,14 +70,18 @@ public class OrderService {
             null
         );
 
+        entryDates.initialize(order, request.backdated(), request.entryDate());
+
         applyOrderData(order, request);
         if (request.initialPayment() != null) {
             validatePaymentAmount(request.initialPayment().amount(), order.getTotalAmount());
-            order.addPayment(JournalPayment.received(
+            order.addPayment(JournalPayment.initial(
                 request.initialPayment().amount(),
                 request.initialPayment().paymentMethod(),
                 trimToNull(request.initialPayment().comment()),
-                creator
+                creator,
+                order.getInitialPaymentReceivedAt(),
+                request.backdated()
             ));
         }
         return mapper.toSummary(entries.saveAndFlush(order));
