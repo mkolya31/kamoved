@@ -146,6 +146,81 @@ class OrderApiIntegrationTest {
 
     @Test
     @WithMockUser(username = "admin")
+    void ignoresAddressWithoutFulfillmentMethodWhenCreatingOrder() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("\"deliveryAddress\": \"Адрес нового заказа\"")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.fulfillmentMethod").isEmpty())
+            .andExpect(jsonPath("$.deliveryAddress").isEmpty())
+            .andReturn();
+
+        long orderId = objectMapper.readTree(result.getResponse().getContentAsByteArray())
+            .get("id").asLong();
+        assertThat(jdbc.queryForObject(
+            "SELECT delivery_address FROM journal_entry WHERE id = ?",
+            String.class,
+            orderId
+        )).isNull();
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void preservesImportedAddressWithUnknownMethodAndClearsItForPickup() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/orders")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(minimalOrder("""
+                    "fulfillmentMethod": "DELIVERY_MARKET",
+                    "deliveryAddress": "СНТ Историческое"
+                    """)))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long orderId = objectMapper.readTree(createResult.getResponse().getContentAsByteArray())
+            .get("id").asLong();
+        jdbc.update("UPDATE journal_entry SET fulfillment_method = NULL WHERE id = ?", orderId);
+
+        mockMvc.perform(patch("/api/orders/{id}", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "items": [{"name": "Тестовый товар", "quantity": 1, "unitPrice": 1000}],
+                      "additionalContacts": [],
+                      "executionStatus": "NEW",
+                      "deliveryAddress": "СНТ Историческое",
+                      "comment": "Изменены только прочие данные",
+                      "version": 0
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fulfillmentMethod").isEmpty())
+            .andExpect(jsonPath("$.deliveryAddress").value("СНТ Историческое"))
+            .andExpect(jsonPath("$.version").value(1));
+
+        mockMvc.perform(patch("/api/orders/{id}", orderId)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "items": [{"name": "Тестовый товар", "quantity": 1, "unitPrice": 1000}],
+                      "additionalContacts": [],
+                      "executionStatus": "NEW",
+                      "fulfillmentMethod": "PICKUP_WAREHOUSE",
+                      "deliveryAddress": "СНТ Историческое",
+                      "version": 1
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fulfillmentMethod").value("PICKUP_WAREHOUSE"))
+            .andExpect(jsonPath("$.deliveryAddress").isEmpty())
+            .andExpect(jsonPath("$.version").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
     void rejectsInvalidPrepayment() throws Exception {
         mockMvc.perform(post("/api/orders")
                 .with(csrf())

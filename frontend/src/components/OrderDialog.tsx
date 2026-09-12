@@ -16,6 +16,7 @@ import {
   unitLabels,
 } from '../lib/format'
 import { serializeOrderFormState, type OrderFormState } from '../lib/orderFormState'
+import { deliveryAddressPayload, shouldShowDeliveryAddressField } from '../lib/order'
 import { formatPhone } from '../lib/phone'
 import { selectDefaultQuantity } from '../lib/quantityInput'
 import {
@@ -178,6 +179,9 @@ export function OrderDialog(props: OrderDialogProps) {
     order?.fulfillmentMethod ?? '',
   )
   const [deliveryAddress, setDeliveryAddress] = useState(order?.deliveryAddress ?? '')
+  const preservesUnspecifiedAddress = isEditing
+    && order.fulfillmentMethod === null
+    && order.deliveryAddress !== null
   const [comment, setComment] = useState(order?.comment ?? '')
   const [factoryReadyDate, setFactoryReadyDate] = useState(
     displayFactoryReadyDate(order?.factoryReadyDate ?? null) || emptyFactoryReadyDate(),
@@ -450,7 +454,11 @@ export function OrderDialog(props: OrderDialogProps) {
       initialPayment,
       executionStatus,
       fulfillmentMethod: fulfillmentMethod || undefined,
-      deliveryAddress: isDeliveryMethod(fulfillmentMethod) ? deliveryAddress.trim() : undefined,
+      deliveryAddress: deliveryAddressPayload(
+        fulfillmentMethod,
+        deliveryAddress,
+        preservesUnspecifiedAddress,
+      ),
       comment: comment.trim() || undefined,
       factoryReadyDate: parsedFactoryReadyDate,
     }
@@ -881,10 +889,13 @@ export function OrderDialog(props: OrderDialogProps) {
                     ))}
                   </select>
                 </label>
-                {isDeliveryMethod(fulfillmentMethod) && (
+                {shouldShowDeliveryAddressField(
+                  fulfillmentMethod,
+                  preservesUnspecifiedAddress,
+                ) && (
                   <div className="order-settings-dependent-fields">
                     <label ref={(node) => registerValidationField('delivery-address', node)}>
-                      Адрес доставки
+                      {isDeliveryMethod(fulfillmentMethod) ? 'Адрес доставки' : 'Адрес'}
                       <input
                         value={deliveryAddress}
                         onChange={(event) => setDeliveryAddress(event.target.value)}
