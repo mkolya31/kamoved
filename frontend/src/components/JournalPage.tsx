@@ -15,7 +15,6 @@ import {
   formatMoney,
   formatQuantity,
   formatTime,
-  fulfillmentLabels,
   paymentLabels,
   paymentMethodLabels,
 } from '../lib/format'
@@ -38,7 +37,7 @@ import {
   type JournalMode,
 } from '../lib/journalPagination'
 import { formatSearchMatches, isJournalSearchActive } from '../lib/journalSearch'
-import { formatAdditionalItemsCount, summaryFromDetails } from '../lib/order'
+import { formatAdditionalItemsCount, fulfillmentDisplay, summaryFromDetails } from '../lib/order'
 import type { ExecutionStatus, JournalEntry, JournalEntryDetails, PaymentDetails, User } from '../types'
 import { OrderDialog } from './OrderDialog'
 import { PaymentDialog } from './PaymentDialog'
@@ -557,6 +556,12 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                     const isOrder = entry.type === 'ORDER'
                     const isExpanded = expanded.has(entry.id)
                     const entryDetails = details.get(entry.id)
+                    const fulfillment = isOrder
+                      ? fulfillmentDisplay(entry.fulfillmentMethod, entry.deliveryAddress)
+                      : null
+                    const detailsFulfillment = isOrder && entryDetails
+                      ? fulfillmentDisplay(entryDetails.fulfillmentMethod, entryDetails.deliveryAddress)
+                      : null
                     const additionalItems = !isExpanded
                       ? formatAdditionalItemsCount(entry.itemsCount)
                       : null
@@ -591,10 +596,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                               {mainItem && additionalItems ? ` ${additionalItems}` : ''}
                             </strong>
                             {mainItem && <small>{formatQuantity(mainItem.quantity, mainItem.unit)}</small>}
-                            {isOrder && entry.fulfillmentMethod && (
+                            {fulfillment && (
                               <small>
-                                {fulfillmentLabels[entry.fulfillmentMethod]}
-                                {entry.deliveryAddress ? ` · ${entry.deliveryAddress}` : ''}
+                                {fulfillment.label}
+                                {fulfillment.address ? ` · ${fulfillment.address}` : ''}
                               </small>
                             )}
                           </span>
@@ -741,10 +746,10 @@ export function JournalPage({ user, onLogout }: JournalPageProps) {
                                         <dd>{formatMoney(entryDetails.remainingAmount)}</dd>
                                       </div>
                                     </dl>
-                                    {entryDetails.fulfillmentMethod && (
+                                    {detailsFulfillment && (
                                       <p>
-                                        <strong>{fulfillmentLabels[entryDetails.fulfillmentMethod]}</strong>
-                                        {entryDetails.deliveryAddress && <span>{entryDetails.deliveryAddress}</span>}
+                                        <strong>{detailsFulfillment.label}</strong>
+                                        {detailsFulfillment.address && <span>{detailsFulfillment.address}</span>}
                                       </p>
                                     )}
                                     {entryDetails.factoryReadyDate && (

@@ -72,7 +72,7 @@ public class OrderService {
 
         entryDates.initialize(order, request.backdated(), request.entryDate());
 
-        applyOrderData(order, request);
+        applyOrderData(order, request, false);
         if (request.initialPayment() != null) {
             validatePaymentAmount(request.initialPayment().amount(), order.getTotalAmount());
             order.addPayment(JournalPayment.initial(
@@ -90,16 +90,23 @@ public class OrderService {
     @Transactional
     public JournalEntryDetails update(long orderId, UpdateOrderRequest request) {
         JournalEntry order = findOrderWithExpectedVersion(orderId, request.version());
-        applyOrderData(order, request);
+        applyOrderData(order, request, true);
         return mapper.toDetails(entries.saveAndFlush(order));
     }
 
-    private void applyOrderData(JournalEntry order, OrderDataRequest request) {
+    private void applyOrderData(
+        JournalEntry order,
+        OrderDataRequest request,
+        boolean allowUnspecifiedDeliveryAddress
+    ) {
         ExecutionStatus executionStatus = request.executionStatus() == null
             ? ExecutionStatus.NEW
             : request.executionStatus();
         String deliveryAddress = validateAndNormalizeAddress(
-            request.fulfillmentMethod(), request.deliveryAddress());
+            request.fulfillmentMethod(),
+            request.deliveryAddress(),
+            allowUnspecifiedDeliveryAddress
+        );
 
         List<JournalEntryItem> orderItems = request.items().stream().map(requestItem -> {
             BigDecimal lineTotal = moneyCalculator.calculateLineTotal(
@@ -210,8 +217,12 @@ public class OrderService {
 
     private String validateAndNormalizeAddress(
         FulfillmentMethod fulfillmentMethod,
-        String deliveryAddress
+        String deliveryAddress,
+        boolean allowUnspecifiedDeliveryAddress
     ) {
+        if (fulfillmentMethod == null) {
+            return allowUnspecifiedDeliveryAddress ? trimToNull(deliveryAddress) : null;
+        }
         if (fulfillmentMethod != FulfillmentMethod.DELIVERY_FACTORY
             && fulfillmentMethod != FulfillmentMethod.DELIVERY_MARKET) {
             return null;
