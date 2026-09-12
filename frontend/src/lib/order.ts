@@ -1,4 +1,39 @@
-import type { JournalEntry, JournalEntryDetails } from '../types'
+import type { FulfillmentMethod, JournalEntry, JournalEntryDetails } from '../types'
+import { fulfillmentLabels } from './format'
+
+export interface FulfillmentDisplay {
+  label: string
+  address: string | null
+}
+
+export function fulfillmentDisplay(
+  method: FulfillmentMethod | null,
+  address: string | null,
+): FulfillmentDisplay | null {
+  if (!method && !address) return null
+  return {
+    label: method ? fulfillmentLabels[method] : 'Способ получения не указан',
+    address,
+  }
+}
+
+export function shouldShowDeliveryAddressField(
+  method: FulfillmentMethod | '',
+  preservesUnspecifiedAddress: boolean,
+): boolean {
+  return method === 'DELIVERY_FACTORY'
+    || method === 'DELIVERY_MARKET'
+    || (method === '' && preservesUnspecifiedAddress)
+}
+
+export function deliveryAddressPayload(
+  method: FulfillmentMethod | '',
+  address: string,
+  preservesUnspecifiedAddress: boolean,
+): string | undefined {
+  if (!shouldShowDeliveryAddressField(method, preservesUnspecifiedAddress)) return undefined
+  return address.trim() || undefined
+}
 
 export function formatAdditionalItemsCount(itemsCount: number): string | null {
   const additionalCount = itemsCount - 1

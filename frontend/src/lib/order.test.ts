@@ -1,6 +1,43 @@
 import { describe, expect, it } from 'vitest'
 import type { JournalEntry, JournalEntryDetails } from '../types'
-import { formatAdditionalItemsCount, summaryFromDetails } from './order'
+import {
+  deliveryAddressPayload,
+  formatAdditionalItemsCount,
+  fulfillmentDisplay,
+  shouldShowDeliveryAddressField,
+  summaryFromDetails,
+} from './order'
+
+describe('fulfillmentDisplay', () => {
+  it('shows an address when the fulfillment method is unknown', () => {
+    expect(fulfillmentDisplay(null, 'СНТ Ромашка, участок 12')).toEqual({
+      label: 'Способ получения не указан',
+      address: 'СНТ Ромашка, участок 12',
+    })
+  })
+
+  it('uses the known fulfillment method and hides an empty block', () => {
+    expect(fulfillmentDisplay('DELIVERY_FACTORY', 'СНТ Ромашка')).toEqual({
+      label: 'Доставка от завода',
+      address: 'СНТ Ромашка',
+    })
+    expect(fulfillmentDisplay(null, null)).toBeNull()
+  })
+})
+
+describe('legacy unspecified delivery address', () => {
+  it('keeps the address visible and in an edit payload while the method stays unknown', () => {
+    expect(shouldShowDeliveryAddressField('', true)).toBe(true)
+    expect(deliveryAddressPayload('', '  СНТ Ромашка  ', true)).toBe('СНТ Ромашка')
+  })
+
+  it('does not enable an address for a new order and clears it for pickup', () => {
+    expect(shouldShowDeliveryAddressField('', false)).toBe(false)
+    expect(deliveryAddressPayload('', 'Скрытый адрес', false)).toBeUndefined()
+    expect(deliveryAddressPayload('PICKUP_WAREHOUSE', 'Скрытый адрес', true)).toBeUndefined()
+    expect(deliveryAddressPayload('PICKUP_FACTORY', 'Скрытый адрес', true)).toBeUndefined()
+  })
+})
 
 describe('formatAdditionalItemsCount', () => {
   it.each([
